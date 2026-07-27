@@ -6,7 +6,10 @@
   },
   "display": {
     "announce_to_chat": false,
-    "description": "Expands brewing with missing potions, new duration and strength tiers, particle-free variants, and custom fuels.",
+    "description": {
+      "text": "Expands brewing with missing potions, new duration and strength tiers, particle-free variants, and custom fuels.",
+      "color": "gray"
+    },
     "icon": {
       "id": "minecraft:potion",
       "components": {
@@ -16,7 +19,10 @@
       }
     },
     "show_toast": false,
-    "title": "Overbrew          "
+    "title": {
+      "text": "Overbrew",
+      "color": "#C77DFF"
+    }
   },
   "parent": "tweakidul:root"
 }
