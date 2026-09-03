@@ -1,15 +1,8 @@
 {
   "generator": {
     "target": {
-      "min_format": 110,
-      "max_format": 111,
-      "overlays": [
-        {
-          "directory": "overlay_111",
-          "min_format": 111,
-          "max_format": 111
-        }
-      ],
+      "min_format": 118,
+      "max_format": 118,
       "description": [
         {
           "text": "Expands brewing with missing potions, new duration and strength tiers, particle-free variants, and custom fuels.",
@@ -247,7 +240,6 @@
     },
     "advancements": {
       "enabled": true,
-      "overlay": "overlay_111",
       "root": "overbrew",
       "entries": {
         "root": {

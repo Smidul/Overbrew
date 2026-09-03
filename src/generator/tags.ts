@@ -9,7 +9,13 @@ import type {
   ReagentConfig,
   ReagentReference,
 } from './types.ts';
-import { basePotionKey, joinPath, namespaced, normalizePath, writeJson } from './utils.ts';
+import {
+  basePotionKey,
+  joinPath,
+  namespaced,
+  normalizePath,
+  writeJson,
+} from './utils.ts';
 
 interface TagDefinition {
   enabled: boolean;
@@ -39,7 +45,10 @@ function unique<T>(values: Iterable<T>): T[] {
 
 function stringList(value: unknown): string[] {
   if (typeof value === 'string') return [value];
-  return Array.isArray(value) && value.every(entry => typeof entry === 'string') ? value : [];
+  return Array.isArray(value) &&
+    value.every((entry) => typeof entry === 'string')
+    ? value
+    : [];
 }
 
 function inferredRuleMatch(path: string): Record<string, ItemTagMatchValue>[] {
@@ -63,17 +72,21 @@ function parseRules(value: unknown): ItemTagRule[] {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry))
       throw new Error(`item_tags.rules[${index}] must be an object`);
 
-
     const rule = entry as ItemTagRuleConfig;
     if (typeof rule.path !== 'string' || !rule.path.trim())
-      throw new Error(`item_tags.rules[${index}].path must be a non-empty string`);
+      throw new Error(
+        `item_tags.rules[${index}].path must be a non-empty string`,
+      );
 
-
-    const matches = [...(rule.match ? [rule.match] : []), ...(rule.matches ?? [])],
-     resolvedMatches = matches.length ? matches : inferredRuleMatch(rule.path);
+    const matches = [
+        ...(rule.match ? [rule.match] : []),
+        ...(rule.matches ?? []),
+      ],
+      resolvedMatches = matches.length ? matches : inferredRuleMatch(rule.path);
     if (!resolvedMatches.length)
-      throw new Error(`item_tags.rules[${index}] needs match, matches, or an inferable convert path`);
-
+      throw new Error(
+        `item_tags.rules[${index}] needs match, matches, or an inferable convert path`,
+      );
 
     const values = stringList(rule.values);
     return {
@@ -89,8 +102,13 @@ function parseAutoKinds(value: unknown): AutoItemTagKind[] {
 
   const kinds: AutoItemTagKind[] = [];
   for (const entry of value) {
-    if (typeof entry !== 'string' || !AUTO_TAG_KINDS.has(entry as AutoItemTagKind))
-      throw new Error(`Unknown item tag auto_generate family: ${String(entry)}`);
+    if (
+      typeof entry !== 'string' ||
+      !AUTO_TAG_KINDS.has(entry as AutoItemTagKind)
+    )
+      throw new Error(
+        `Unknown item tag auto_generate family: ${String(entry)}`,
+      );
 
     const kind = entry as AutoItemTagKind;
     if (!kinds.includes(kind)) kinds.push(kind);
@@ -100,12 +118,17 @@ function parseAutoKinds(value: unknown): AutoItemTagKind[] {
 
 function matchesValue(actual: unknown, expected: ItemTagMatchValue): boolean {
   const expectedValues = Array.isArray(expected) ? expected : [expected],
-   actualValues = Array.isArray(actual) ? actual : [actual];
-  return expectedValues.some(value => actualValues.includes(value));
+    actualValues = Array.isArray(actual) ? actual : [actual];
+  return expectedValues.some((value) => actualValues.includes(value));
 }
 
-function matchesContext(context: ItemTagContext, match: Record<string, ItemTagMatchValue>): boolean {
-  return Object.entries(match).every(([key, expected]) => matchesValue(context[key], expected));
+function matchesContext(
+  context: ItemTagContext,
+  match: Record<string, ItemTagMatchValue>,
+): boolean {
+  return Object.entries(match).every(([key, expected]) =>
+    matchesValue(context[key], expected),
+  );
 }
 
 function tagSettings(
@@ -152,7 +175,12 @@ export class IngredientTagRegistry {
   private readonly outputReplace = new Map<string, boolean>();
   private readonly materializing = new Set<string>();
 
-  constructor(namespace: string, itemNamespace: string, config: ItemTagsConfig = {}, catalog: ReagentReference[] = []) {
+  constructor(
+    namespace: string,
+    itemNamespace: string,
+    config: ItemTagsConfig = {},
+    catalog: ReagentReference[] = [],
+  ) {
     this.namespace = namespace;
     this.itemNamespace = itemNamespace;
     this.root = normalizePath(config.root ?? 'brewing');
@@ -165,7 +193,9 @@ export class IngredientTagRegistry {
 
   private fullPath(value: string): string {
     const path = normalizePath(value);
-    return path === this.root || path.startsWith(`${this.root}/`) ? path : `${this.root}/${path}`;
+    return path === this.root || path.startsWith(`${this.root}/`)
+      ? path
+      : `${this.root}/${path}`;
   }
 
   private referenceKey(category: ReagentCategory, id: string): string {
@@ -179,16 +209,25 @@ export class IngredientTagRegistry {
   /** Registers one config-owned reagent and merges compatible duplicate values. */
   register(reference: ReagentReference): void {
     const id = normalizePath(reference.id),
-     defaultPath = reagentTagPath(reference.category, id),
-     settings = tagSettings(reference.config, this.autoGenerate.includes(reference.category), defaultPath),
-     path = this.fullPath(settings.path),
-     values = reference.config.items.map(item => namespaced(item, this.itemNamespace));
-    if (!values.length) throw new Error(`Reagent ${reference.category}:${id} has no items`);
+      defaultPath = reagentTagPath(reference.category, id),
+      settings = tagSettings(
+        reference.config,
+        this.autoGenerate.includes(reference.category),
+        defaultPath,
+      ),
+      path = this.fullPath(settings.path),
+      values = reference.config.items.map((item) =>
+        namespaced(item, this.itemNamespace),
+      );
+    if (!values.length)
+      throw new Error(`Reagent ${reference.category}:${id} has no items`);
 
     const key = this.referenceKey(reference.category, id),
-     previousPath = this.referencePaths.get(key);
+      previousPath = this.referencePaths.get(key);
     if (previousPath && previousPath !== path)
-      throw new Error(`Reagent ${key} was assigned both ${previousPath} and ${path}`);
+      throw new Error(
+        `Reagent ${key} was assigned both ${previousPath} and ${path}`,
+      );
 
     this.referencePaths.set(key, path);
 
@@ -197,7 +236,10 @@ export class IngredientTagRegistry {
       this.definitions.set(path, { ...settings, values });
       return;
     }
-    if (previous.enabled !== settings.enabled || previous.replace !== settings.replace)
+    if (
+      previous.enabled !== settings.enabled ||
+      previous.replace !== settings.replace
+    )
       throw new Error(`Conflicting tag settings for ${path}`);
 
     previous.values = unique([...previous.values, ...values]);
@@ -216,18 +258,21 @@ export class IngredientTagRegistry {
     if (!raw.includes(':')) return this.resolveTag(this.fullPath(raw), stack);
 
     const [namespace, path] = raw.split(':', 2);
-    return namespace === this.namespace ? this.resolveTag(path, stack) : [`#${raw}`];
+    return namespace === this.namespace
+      ? this.resolveTag(path, stack)
+      : [`#${raw}`];
   }
 
   private directValues(path: string, stack: string[] = []): string[] {
     const fullPath = this.fullPath(path),
-     definition = this.definitions.get(fullPath);
+      definition = this.definitions.get(fullPath);
     if (!definition) throw new Error(`Unknown generated tag: ${fullPath}`);
     if (stack.includes(fullPath))
-      throw new Error(`Generated tag cycle: ${[...stack, fullPath].join(' -> ')}`);
+      throw new Error(
+        `Generated tag cycle: ${[...stack, fullPath].join(' -> ')}`,
+      );
 
-
-    return definition.values.flatMap(value =>
+    return definition.values.flatMap((value) =>
       value.startsWith('#')
         ? this.configuredValue(value, [...stack, fullPath])
         : [namespaced(value, this.itemNamespace)],
@@ -236,7 +281,7 @@ export class IngredientTagRegistry {
 
   private resolveTag(path: string, stack: string[] = []): string[] {
     const fullPath = this.fullPath(path),
-     definition = this.definitions.get(fullPath);
+      definition = this.definitions.get(fullPath);
     if (!definition) throw new Error(`Unknown generated tag: ${fullPath}`);
     if (!definition.enabled) return this.directValues(fullPath, stack);
 
@@ -249,14 +294,16 @@ export class IngredientTagRegistry {
     if (this.materializing.has(path) || stack.includes(path))
       throw new Error(`Generated tag cycle: ${[...stack, path].join(' -> ')}`);
 
-
     const definition = this.definitions.get(path);
     if (!definition?.enabled) return;
-    if (!definition.values.length) throw new Error(`Generated tag ${path} has no values`);
+    if (!definition.values.length)
+      throw new Error(`Generated tag ${path} has no values`);
 
     this.materializing.add(path);
-    const values = definition.values.flatMap(value =>
-      value.startsWith('#') ? this.configuredValue(value, [...stack, path]) : [namespaced(value, this.itemNamespace)],
+    const values = definition.values.flatMap((value) =>
+      value.startsWith('#')
+        ? this.configuredValue(value, [...stack, path])
+        : [namespaced(value, this.itemNamespace)],
     );
     this.materializing.delete(path);
 
@@ -266,28 +313,38 @@ export class IngredientTagRegistry {
     this.outputReplace.set(path, definition.replace);
   }
 
-  private automaticPath(kind: AutoItemTagKind, context: ItemTagContext): string | null {
+  private automaticPath(
+    kind: AutoItemTagKind,
+    context: ItemTagContext,
+  ): string | null {
     const value = (key: keyof ItemTagContext): string =>
-      typeof context[key] === 'string' ? normalizePath(String(context[key])) : '',
-
-     input = value('input'),
-     output = value('output'),
-     effect = value('effect'),
-     inputEffect = value('input_effect'),
-     outputEffect = value('output_effect'),
-     modifier = value('modifier'),
-     inputForm = value('input_form'),
-     outputForm = value('output_form');
+        typeof context[key] === 'string'
+          ? normalizePath(String(context[key]))
+          : '',
+      input = value('input'),
+      output = value('output'),
+      effect = value('effect'),
+      inputEffect = value('input_effect'),
+      outputEffect = value('output_effect'),
+      modifier = value('modifier'),
+      inputForm = value('input_form'),
+      outputForm = value('output_form');
 
     switch (kind) {
       case 'base':
         return context.category === 'base' && output ? `base/${output}` : null;
       case 'effect':
-        return context.category === 'effect' && effect ? `effect/${effect}` : null;
+        return context.category === 'effect' && effect
+          ? `effect/${effect}`
+          : null;
       case 'modifier':
         return modifier ? `modifier/${modifier}` : null;
       case 'variant':
-        return context.category === 'modifier' && effect && input && output && input !== output
+        return context.category === 'modifier' &&
+          effect &&
+          input &&
+          output &&
+          input !== output
           ? `variant/${input}_to_${output}`
           : null;
       case 'convert':
@@ -295,21 +352,31 @@ export class IngredientTagRegistry {
           ? `convert/${inputEffect || basePotionKey(input)}_to_${outputEffect || basePotionKey(output)}`
           : null;
       case 'conversion':
-        return inputForm && outputForm && inputForm !== outputForm ? `conversion/${inputForm}_to_${outputForm}` : null;
+        return inputForm && outputForm && inputForm !== outputForm
+          ? `conversion/${inputForm}_to_${outputForm}`
+          : null;
       case 'recipe': {
         if (!context.source || !context.recipe) return null;
         const recipe = normalizePath(String(context.recipe));
-        return recipe.startsWith(`${context.source}/`) ? `recipe/${recipe}` : `recipe/${context.source}/${recipe}`;
+        return recipe.startsWith(`${context.source}/`)
+          ? `recipe/${recipe}`
+          : `recipe/${context.source}/${recipe}`;
       }
     }
   }
 
   private matchingRule(context: ItemTagContext): ItemTagRule | undefined {
-    return this.rules.find(rule => rule.matches.some(match => matchesContext(context, match)));
+    return this.rules.find((rule) =>
+      rule.matches.some((match) => matchesContext(context, match)),
+    );
   }
 
-  private ruleValues(values: string[], defaults: string[], automatic: string[]): string[] {
-    return values.flatMap(value => {
+  private ruleValues(
+    values: string[],
+    defaults: string[],
+    automatic: string[],
+  ): string[] {
+    return values.flatMap((value) => {
       if (value === '$default') return defaults;
       if (value === '$auto') return automatic;
       return this.configuredValue(value, []);
@@ -319,7 +386,9 @@ export class IngredientTagRegistry {
   private single(values: string[], description: string): string {
     const resolved = unique(values);
     if (resolved.length !== 1)
-      throw new Error(`${description} resolves to ${resolved.length} values; enable or route through an item tag`);
+      throw new Error(
+        `${description} resolves to ${resolved.length} values; enable or route through an item tag`,
+      );
 
     return resolved[0];
   }
@@ -337,15 +406,18 @@ export class IngredientTagRegistry {
     context: ItemTagContext,
   ): string {
     const defaultPath = this.referencePath(reference),
-     fullContext: ItemTagContext = {
-      ...context,
-      operation: `${reference.category}:${reference.id}`,
-      recipe_key: recipeKey,
-    };
+      fullContext: ItemTagContext = {
+        ...context,
+        operation: `${reference.category}:${reference.id}`,
+        recipe_key: recipeKey,
+      };
 
     if (!useTag || !this.enabled) {
       if (fallbackItem) return namespaced(fallbackItem, this.itemNamespace);
-      return this.single(this.directValues(defaultPath), `Reagent ${defaultPath}`);
+      return this.single(
+        this.directValues(defaultPath),
+        `Reagent ${defaultPath}`,
+      );
     }
 
     const defaultValues = this.resolveTag(defaultPath);
@@ -364,29 +436,34 @@ export class IngredientTagRegistry {
           replace: false,
         });
       }
-      if (this.definitions.get(path)!.enabled) automaticValues = this.resolveTag(path);
+      if (this.definitions.get(path)!.enabled)
+        automaticValues = this.resolveTag(path);
     }
 
     const rule = this.matchingRule(fullContext);
     if (!rule)
-      return this.single(automaticValues, `Automatic reagent for ${recipeKey ?? reference.id}`);
-
+      return this.single(
+        automaticValues,
+        `Automatic reagent for ${recipeKey ?? reference.id}`,
+      );
 
     const path = this.fullPath(rule.path),
-     values = this.ruleValues(rule.values, defaultValues, automaticValues),
-     definition = this.definitions.get(path);
+      values = this.ruleValues(rule.values, defaultValues, automaticValues),
+      definition = this.definitions.get(path);
     if (definition && !definition.enabled)
       return this.single(automaticValues, `Disabled rule tag ${path}`);
 
-
-    if (definition) definition.values = unique([...definition.values, ...values]);
+    if (definition)
+      definition.values = unique([...definition.values, ...values]);
     else this.definitions.set(path, { enabled: true, values, replace: false });
     return this.single(this.resolveTag(path), `Rule tag ${path}`);
   }
 
   /** Writes only generated tags that were referenced by at least one recipe. */
   async write(namespaceRoot: string): Promise<number> {
-    const entries = [...this.outputValues].sort(([a], [b]) => a.localeCompare(b));
+    const entries = [...this.outputValues].sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
     await Promise.all(
       entries.map(([path, values]) =>
         writeJson(joinPath(namespaceRoot, 'tags', 'item', `${path}.json`), {

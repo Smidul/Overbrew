@@ -15,10 +15,16 @@ import type {
   VariantStateObject,
 } from './types.ts';
 
-const customCache = new WeakMap<GeneratorConfig, Map<string, Record<string, ResolvedVariantDefinition>>>(),
- vanillaCache = new WeakMap<GeneratorConfig, Map<string, Record<string, ResolvedVariantDefinition>>>(),
- generationCache = new WeakMap<GeneratorConfig, VariantGenerationConfig>(),
- profileCache = new WeakMap<GeneratorConfig, Map<string, ResolvedProfile>>();
+const customCache = new WeakMap<
+    GeneratorConfig,
+    Map<string, Record<string, ResolvedVariantDefinition>>
+  >(),
+  vanillaCache = new WeakMap<
+    GeneratorConfig,
+    Map<string, Record<string, ResolvedVariantDefinition>>
+  >(),
+  generationCache = new WeakMap<GeneratorConfig, VariantGenerationConfig>(),
+  profileCache = new WeakMap<GeneratorConfig, Map<string, ResolvedProfile>>();
 
 interface ResolvedProfile extends VariantPolicy {
   states: Record<string, VariantEffectState>;
@@ -28,17 +34,24 @@ function isObject(value: unknown): value is JsonObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function validateEffectState(value: unknown, path: string): asserts value is VariantEffectState {
+function validateEffectState(
+  value: unknown,
+  path: string,
+): asserts value is VariantEffectState {
   if (isObject(value)) return;
   if (Array.isArray(value) && value.length && value.every(isObject)) return;
-  throw new Error(`${path} must be an effect object or a non-empty array of effect objects`);
+  throw new Error(
+    `${path} must be an effect object or a non-empty array of effect objects`,
+  );
 }
 
 function isStateWrapper(value: JsonObject): value is VariantStateObject {
   return 'potion' in value || 'color' in value || 'effects' in value;
 }
 
-function stateDescriptor(value: VariantStateConfig | undefined): VariantStateObject {
+function stateDescriptor(
+  value: VariantStateConfig | undefined,
+): VariantStateObject {
   if (value === undefined) return {};
   if (typeof value === 'string') return { potion: value };
   if (Array.isArray(value)) return { effects: value };
@@ -51,22 +64,39 @@ function generationConfig(config: GeneratorConfig): VariantGenerationConfig {
 
   const generation = config.generator.variant_generation;
   if (!generation)
-    throw new Error('generator.variant_generation is required when generated variants or variant_axis is used');
+    throw new Error(
+      'generator.variant_generation is required when generated variants or variant_axis is used',
+    );
 
   const duration = generation.axes?.duration,
-   amplifier = generation.axes?.amplifier;
-  if (!Array.isArray(duration) || !Array.isArray(amplifier) || !duration.length || !amplifier.length)
-    throw new Error('generator.variant_generation.axes must define non-empty duration and amplifier arrays');
+    amplifier = generation.axes?.amplifier;
+  if (
+    !Array.isArray(duration) ||
+    !Array.isArray(amplifier) ||
+    !duration.length ||
+    !amplifier.length
+  )
+    throw new Error(
+      'generator.variant_generation.axes must define non-empty duration and amplifier arrays',
+    );
   if (duration[0] !== 'base' || amplifier[0] !== 'base')
     throw new Error('Both variant axes must start with "base"');
-  if (new Set(duration).size !== duration.length || new Set(amplifier).size !== amplifier.length)
+  if (
+    new Set(duration).size !== duration.length ||
+    new Set(amplifier).size !== amplifier.length
+  )
     throw new Error('Variant axis names must be unique within each axis');
 
   const nonBase = [...duration.slice(1), ...amplifier.slice(1)];
   if (new Set(nonBase).size !== nonBase.length)
     throw new Error('Non-base variant names must be unique across both axes');
-  if (generation.rounding !== undefined && !['nearest', 'floor', 'ceil'].includes(generation.rounding))
-    throw new Error('generator.variant_generation.rounding must be "nearest", "floor", or "ceil"');
+  if (
+    generation.rounding !== undefined &&
+    !['nearest', 'floor', 'ceil'].includes(generation.rounding)
+  )
+    throw new Error(
+      'generator.variant_generation.rounding must be "nearest", "floor", or "ceil"',
+    );
   if (generation.profiles !== undefined && !isObject(generation.profiles))
     throw new Error('generator.variant_generation.profiles must be an object');
 
@@ -75,16 +105,25 @@ function generationConfig(config: GeneratorConfig): VariantGenerationConfig {
 }
 
 /** Returns the configured ordered variant names for one axis. */
-export function variantAxisNames(config: GeneratorConfig, axis: VariantAxis): string[] {
+export function variantAxisNames(
+  config: GeneratorConfig,
+  axis: VariantAxis,
+): string[] {
   return [...generationConfig(config).axes[axis]];
 }
 
 /** Returns the stable variant name represented by one axis coordinate. */
-export function coordinateName(config: GeneratorConfig, duration: number, amplifier: number): string {
+export function coordinateName(
+  config: GeneratorConfig,
+  duration: number,
+  amplifier: number,
+): string {
   const durationName = variantAxisNames(config, 'duration')[duration],
-   amplifierName = variantAxisNames(config, 'amplifier')[amplifier];
+    amplifierName = variantAxisNames(config, 'amplifier')[amplifier];
   if (!durationName || !amplifierName)
-    throw new Error(`Unknown variant coordinate: duration ${duration}, amplifier ${amplifier}`);
+    throw new Error(
+      `Unknown variant coordinate: duration ${duration}, amplifier ${amplifier}`,
+    );
   if (!duration && !amplifier) return 'base';
   if (!duration) return amplifierName;
   if (!amplifier) return durationName;
@@ -92,9 +131,12 @@ export function coordinateName(config: GeneratorConfig, duration: number, amplif
 }
 
 /** Resolves a configured variant name to its duration/amplifier coordinate. */
-export function coordinateForName(config: GeneratorConfig, name: string): VariantCoordinate | null {
+export function coordinateForName(
+  config: GeneratorConfig,
+  name: string,
+): VariantCoordinate | null {
   const durations = variantAxisNames(config, 'duration'),
-   amplifiers = variantAxisNames(config, 'amplifier');
+    amplifiers = variantAxisNames(config, 'amplifier');
   for (let duration = 0; duration < durations.length; duration++) {
     for (let amplifier = 0; amplifier < amplifiers.length; amplifier++) {
       if (coordinateName(config, duration, amplifier) === name)
@@ -111,12 +153,14 @@ export function vanillaVariantKey(family: string, variant: string): string {
 
 function validateRatio(value: unknown, path: string): void {
   if (typeof value === 'number') {
-    if (!Number.isFinite(value) || value <= 0) throw new Error(`${path} must be greater than zero`);
+    if (!Number.isFinite(value) || value <= 0)
+      throw new Error(`${path} must be greater than zero`);
     return;
   }
-  if (!isObject(value)) throw new Error(`${path} must be a number or { numerator, denominator }`);
+  if (!isObject(value))
+    throw new Error(`${path} must be a number or { numerator, denominator }`);
   const numerator = Number(value.numerator),
-   denominator = Number(value.denominator);
+    denominator = Number(value.denominator);
   if (!Number.isFinite(numerator) || numerator <= 0)
     throw new Error(`${path}.numerator must be greater than zero`);
   if (!Number.isFinite(denominator) || denominator <= 0)
@@ -125,17 +169,29 @@ function validateRatio(value: unknown, path: string): void {
 
 function ratioValue(value: VariantRatio, path: string): number {
   validateRatio(value, path);
-  return typeof value === 'number' ? value : Number(value.numerator) / Number(value.denominator);
+  return typeof value === 'number'
+    ? value
+    : Number(value.numerator) / Number(value.denominator);
 }
 
-function validatePolicy(config: GeneratorConfig, policy: VariantPolicy, path: string): void {
+function validatePolicy(
+  config: GeneratorConfig,
+  policy: VariantPolicy,
+  path: string,
+): void {
   const maxima: Record<VariantAxis, number> = {
     duration: variantAxisNames(config, 'duration').length - 1,
     amplifier: variantAxisNames(config, 'amplifier').length - 1,
   };
-  for (const [field, axis] of [['durations', 'duration'], ['amplifiers', 'amplifier']] as const) {
+  for (const [field, axis] of [
+    ['durations', 'duration'],
+    ['amplifiers', 'amplifier'],
+  ] as const) {
     const value = policy[field];
-    if (value !== undefined && (!Number.isInteger(value) || value < 0 || value > maxima[axis]))
+    if (
+      value !== undefined &&
+      (!Number.isInteger(value) || value < 0 || value > maxima[axis])
+    )
       throw new Error(`${path}.${field} must be between 0 and ${maxima[axis]}`);
   }
   if (policy.mix !== undefined && typeof policy.mix !== 'boolean')
@@ -145,14 +201,22 @@ function validatePolicy(config: GeneratorConfig, policy: VariantPolicy, path: st
 
   const duration = policy.scaling?.duration;
   if (duration !== undefined) {
-    if (!isObject(duration)) throw new Error(`${path}.scaling.duration must be an object`);
+    if (!isObject(duration))
+      throw new Error(`${path}.scaling.duration must be an object`);
     if (duration.multiplier !== undefined)
       validateRatio(duration.multiplier, `${path}.scaling.duration.multiplier`);
-    if (duration.progression !== undefined && !['linear', 'multiplicative'].includes(duration.progression))
-      throw new Error(`${path}.scaling.duration.progression must be "linear" or "multiplicative"`);
+    if (
+      duration.progression !== undefined &&
+      !['linear', 'multiplicative'].includes(duration.progression)
+    )
+      throw new Error(
+        `${path}.scaling.duration.progression must be "linear" or "multiplicative"`,
+      );
     if (duration.multipliers !== undefined) {
       if (!isObject(duration.multipliers))
-        throw new Error(`${path}.scaling.duration.multipliers must be an object`);
+        throw new Error(
+          `${path}.scaling.duration.multipliers must be an object`,
+        );
       for (const [effect, value] of Object.entries(duration.multipliers))
         validateRatio(value, `${path}.scaling.duration.multipliers.${effect}`);
     }
@@ -160,7 +224,8 @@ function validatePolicy(config: GeneratorConfig, policy: VariantPolicy, path: st
 
   const amplifier = policy.scaling?.amplifier;
   if (amplifier !== undefined) {
-    if (!isObject(amplifier)) throw new Error(`${path}.scaling.amplifier must be an object`);
+    if (!isObject(amplifier))
+      throw new Error(`${path}.scaling.amplifier must be an object`);
     if (amplifier.step !== undefined && !Number.isInteger(amplifier.step))
       throw new Error(`${path}.scaling.amplifier.step must be an integer`);
     if (amplifier.steps !== undefined) {
@@ -168,50 +233,71 @@ function validatePolicy(config: GeneratorConfig, policy: VariantPolicy, path: st
         throw new Error(`${path}.scaling.amplifier.steps must be an object`);
       for (const [effect, value] of Object.entries(amplifier.steps))
         if (!Number.isInteger(value))
-          throw new Error(`${path}.scaling.amplifier.steps.${effect} must be an integer`);
+          throw new Error(
+            `${path}.scaling.amplifier.steps.${effect} must be an integer`,
+          );
     }
     if (amplifier.duration_multiplier !== undefined)
-      validateRatio(amplifier.duration_multiplier, `${path}.scaling.amplifier.duration_multiplier`);
+      validateRatio(
+        amplifier.duration_multiplier,
+        `${path}.scaling.amplifier.duration_multiplier`,
+      );
     if (amplifier.duration_multipliers !== undefined) {
       if (!isObject(amplifier.duration_multipliers))
-        throw new Error(`${path}.scaling.amplifier.duration_multipliers must be an object`);
-      for (const [effect, value] of Object.entries(amplifier.duration_multipliers))
-        validateRatio(value, `${path}.scaling.amplifier.duration_multipliers.${effect}`);
+        throw new Error(
+          `${path}.scaling.amplifier.duration_multipliers must be an object`,
+        );
+      for (const [effect, value] of Object.entries(
+        amplifier.duration_multipliers,
+      ))
+        validateRatio(
+          value,
+          `${path}.scaling.amplifier.duration_multipliers.${effect}`,
+        );
     }
   }
 }
 
-function mergePolicy(base: VariantPolicy, override: VariantPolicy): VariantPolicy {
+function mergePolicy(
+  base: VariantPolicy,
+  override: VariantPolicy,
+): VariantPolicy {
   const durationMultipliers = {
-    ...(base.scaling?.duration?.multipliers ?? {}),
-    ...(override.scaling?.duration?.multipliers ?? {}),
-  },
-   amplifierSteps = {
-     ...(base.scaling?.amplifier?.steps ?? {}),
-     ...(override.scaling?.amplifier?.steps ?? {}),
-   },
-   amplifierDurationMultipliers = {
-     ...(base.scaling?.amplifier?.duration_multipliers ?? {}),
-     ...(override.scaling?.amplifier?.duration_multipliers ?? {}),
-   },
-   durationScaling = base.scaling?.duration || override.scaling?.duration
-     ? {
-         ...structuredClone(base.scaling?.duration ?? {}),
-         ...structuredClone(override.scaling?.duration ?? {}),
-         ...(Object.keys(durationMultipliers).length ? { multipliers: durationMultipliers } : {}),
-       }
-     : undefined,
-   amplifierScaling = base.scaling?.amplifier || override.scaling?.amplifier
-     ? {
-         ...structuredClone(base.scaling?.amplifier ?? {}),
-         ...structuredClone(override.scaling?.amplifier ?? {}),
-         ...(Object.keys(amplifierSteps).length ? { steps: amplifierSteps } : {}),
-         ...(Object.keys(amplifierDurationMultipliers).length
-           ? { duration_multipliers: amplifierDurationMultipliers }
-           : {}),
-       }
-     : undefined,
-   output: VariantPolicy = {};
+      ...(base.scaling?.duration?.multipliers ?? {}),
+      ...(override.scaling?.duration?.multipliers ?? {}),
+    },
+    amplifierSteps = {
+      ...(base.scaling?.amplifier?.steps ?? {}),
+      ...(override.scaling?.amplifier?.steps ?? {}),
+    },
+    amplifierDurationMultipliers = {
+      ...(base.scaling?.amplifier?.duration_multipliers ?? {}),
+      ...(override.scaling?.amplifier?.duration_multipliers ?? {}),
+    },
+    durationScaling =
+      base.scaling?.duration || override.scaling?.duration
+        ? {
+            ...structuredClone(base.scaling?.duration ?? {}),
+            ...structuredClone(override.scaling?.duration ?? {}),
+            ...(Object.keys(durationMultipliers).length
+              ? { multipliers: durationMultipliers }
+              : {}),
+          }
+        : undefined,
+    amplifierScaling =
+      base.scaling?.amplifier || override.scaling?.amplifier
+        ? {
+            ...structuredClone(base.scaling?.amplifier ?? {}),
+            ...structuredClone(override.scaling?.amplifier ?? {}),
+            ...(Object.keys(amplifierSteps).length
+              ? { steps: amplifierSteps }
+              : {}),
+            ...(Object.keys(amplifierDurationMultipliers).length
+              ? { duration_multipliers: amplifierDurationMultipliers }
+              : {}),
+          }
+        : undefined,
+    output: VariantPolicy = {};
 
   output.durations = override.durations ?? base.durations;
   output.amplifiers = override.amplifiers ?? base.amplifiers;
@@ -232,35 +318,65 @@ function validateProfileStates(
   if (states === undefined) return;
   if (!isObject(states)) throw new Error(`${path} must be an object`);
   for (const [state, value] of Object.entries(states)) {
-    if (!coordinateForName(config, state)) throw new Error(`${path} has unknown state ${state}`);
+    if (!coordinateForName(config, state))
+      throw new Error(`${path} has unknown state ${state}`);
     validateEffectState(value, `${path}.${state}`);
   }
 }
 
-function resolveProfile(config: GeneratorConfig, id: string, stack: string[] = []): ResolvedProfile {
+function resolveProfile(
+  config: GeneratorConfig,
+  id: string,
+  stack: string[] = [],
+): ResolvedProfile {
   let cache = profileCache.get(config);
-  if (!cache) profileCache.set(config, cache = new Map());
+  if (!cache) profileCache.set(config, (cache = new Map()));
   const cached = cache.get(id);
   if (cached) return structuredClone(cached);
 
   const profile = generationConfig(config).profiles?.[id];
   if (!profile) throw new Error(`Unknown variant profile: ${id}`);
-  if (!isObject(profile)) throw new Error(`generator.variant_generation.profiles.${id} must be an object`);
-  if (stack.includes(id)) throw new Error(`Variant profile inheritance cycle: ${[...stack, id].join(' -> ')}`);
-  if (profile.extends !== undefined && (typeof profile.extends !== 'string' || !profile.extends.trim()))
-    throw new Error(`generator.variant_generation.profiles.${id}.extends must be a non-empty profile ID`);
+  if (!isObject(profile))
+    throw new Error(
+      `generator.variant_generation.profiles.${id} must be an object`,
+    );
+  if (stack.includes(id))
+    throw new Error(
+      `Variant profile inheritance cycle: ${[...stack, id].join(' -> ')}`,
+    );
+  if (
+    profile.extends !== undefined &&
+    (typeof profile.extends !== 'string' || !profile.extends.trim())
+  )
+    throw new Error(
+      `generator.variant_generation.profiles.${id}.extends must be a non-empty profile ID`,
+    );
 
-  validateProfileStates(config, profile.states, `generator.variant_generation.profiles.${id}.states`);
-  const { extends: parentId, states: ownStates = {}, ...ownPolicy } = profile as VariantProfile,
-   parent = parentId ? resolveProfile(config, parentId, [...stack, id]) : { states: {} },
-   resolved: ResolvedProfile = {
-     ...mergePolicy(parent, ownPolicy),
-     states: {
-       ...structuredClone(parent.states),
-       ...structuredClone(ownStates),
-     },
-   };
-  validatePolicy(config, resolved, `generator.variant_generation.profiles.${id}`);
+  validateProfileStates(
+    config,
+    profile.states,
+    `generator.variant_generation.profiles.${id}.states`,
+  );
+  const {
+      extends: parentId,
+      states: ownStates = {},
+      ...ownPolicy
+    } = profile as VariantProfile,
+    parent = parentId
+      ? resolveProfile(config, parentId, [...stack, id])
+      : { states: {} },
+    resolved: ResolvedProfile = {
+      ...mergePolicy(parent, ownPolicy),
+      states: {
+        ...structuredClone(parent.states),
+        ...structuredClone(ownStates),
+      },
+    };
+  validatePolicy(
+    config,
+    resolved,
+    `generator.variant_generation.profiles.${id}`,
+  );
   cache.set(id, structuredClone(resolved));
   return resolved;
 }
@@ -270,40 +386,68 @@ interface ResolvedVariantSetup {
   profileStates: Record<string, VariantEffectState>;
 }
 
-function effectiveSetup(config: GeneratorConfig, variants: VariantConfig): ResolvedVariantSetup {
-  const profile = variants.profile ? resolveProfile(config, variants.profile.trim()) : { states: {} },
-   local: VariantPolicy = {
-     durations: variants.durations,
-     amplifiers: variants.amplifiers,
-     mix: variants.mix,
-     scaling: variants.scaling,
-   },
-   policy = mergePolicy(profile, local);
+function effectiveSetup(
+  config: GeneratorConfig,
+  variants: VariantConfig,
+): ResolvedVariantSetup {
+  const profile = variants.profile
+      ? resolveProfile(config, variants.profile.trim())
+      : { states: {} },
+    local: VariantPolicy = {
+      durations: variants.durations,
+      amplifiers: variants.amplifiers,
+      mix: variants.mix,
+      scaling: variants.scaling,
+    },
+    policy = mergePolicy(profile, local);
   validatePolicy(config, policy, 'resolved variants');
   return { policy, profileStates: structuredClone(profile.states) };
 }
 
-function validateVariants(config: GeneratorConfig, path: string, variants: VariantConfig): ResolvedVariantSetup {
+function validateVariants(
+  config: GeneratorConfig,
+  path: string,
+  variants: VariantConfig,
+): ResolvedVariantSetup {
   if (!isObject(variants)) throw new Error(`${path} must be an object`);
-  if (variants.profile !== undefined && (typeof variants.profile !== 'string' || !variants.profile.trim()))
+  if (
+    variants.profile !== undefined &&
+    (typeof variants.profile !== 'string' || !variants.profile.trim())
+  )
     throw new Error(`${path}.profile must be a non-empty profile ID`);
   if (variants.profile) resolveProfile(config, variants.profile.trim());
   validatePolicy(config, variants, path);
   if (variants.states !== undefined && !isObject(variants.states))
     throw new Error(`${path}.states must be an object`);
   if (!variants.profile && !Object.hasOwn(variants.states ?? {}, 'base'))
-    throw new Error(`${path}.states.base is required when no profile is selected`);
+    throw new Error(
+      `${path}.states.base is required when no profile is selected`,
+    );
 
   for (const [state, value] of Object.entries(variants.states ?? {})) {
-    if (!coordinateForName(config, state)) throw new Error(`${path}.states has unknown state ${state}`);
+    if (!coordinateForName(config, state))
+      throw new Error(`${path}.states has unknown state ${state}`);
     const descriptor = stateDescriptor(value);
-    if (descriptor.potion !== undefined &&
-        (typeof descriptor.potion !== 'string' || !descriptor.potion.includes(':')))
-      throw new Error(`${path}.states.${state}.potion must be a namespaced potion type`);
-    if (descriptor.color !== undefined && (!Number.isInteger(descriptor.color) || descriptor.color < 0))
-      throw new Error(`${path}.states.${state}.color must be a non-negative integer`);
+    if (
+      descriptor.potion !== undefined &&
+      (typeof descriptor.potion !== 'string' ||
+        !descriptor.potion.includes(':'))
+    )
+      throw new Error(
+        `${path}.states.${state}.potion must be a namespaced potion type`,
+      );
+    if (
+      descriptor.color !== undefined &&
+      (!Number.isInteger(descriptor.color) || descriptor.color < 0)
+    )
+      throw new Error(
+        `${path}.states.${state}.color must be a non-negative integer`,
+      );
     if (descriptor.effects !== undefined)
-      validateEffectState(descriptor.effects, `${path}.states.${state}.effects`);
+      validateEffectState(
+        descriptor.effects,
+        `${path}.states.${state}.effects`,
+      );
   }
   return effectiveSetup(config, variants);
 }
@@ -311,13 +455,19 @@ function validateVariants(config: GeneratorConfig, path: string, variants: Varia
 function finiteInteger(value: unknown, path: string, minimum: number): number {
   const number = Number(value);
   if (!Number.isFinite(number) || !Number.isInteger(number) || number < minimum)
-    throw new Error(`${path} must be an integer greater than or equal to ${minimum}`);
+    throw new Error(
+      `${path} must be an integer greater than or equal to ${minimum}`,
+    );
   return number;
 }
 
 function rounded(config: GeneratorConfig, value: number): number {
   const mode = generationConfig(config).rounding ?? 'nearest';
-  return mode === 'floor' ? Math.floor(value) : mode === 'ceil' ? Math.ceil(value) : Math.round(value);
+  return mode === 'floor'
+    ? Math.floor(value)
+    : mode === 'ceil'
+      ? Math.ceil(value)
+      : Math.round(value);
 }
 
 function effectStateAt(
@@ -330,35 +480,60 @@ function effectStateAt(
   if (values === undefined) return undefined;
   if (Array.isArray(values)) {
     if (values.length !== effectCount)
-      throw new Error(`${path} must contain exactly ${effectCount} effect entries`);
+      throw new Error(
+        `${path} must contain exactly ${effectCount} effect entries`,
+      );
     return structuredClone(values[effectIndex]);
   }
   return structuredClone(values);
 }
 
-function effectRule<T>(rules: Record<string, T> | undefined, effectId: string): T | undefined {
+function effectRule<T>(
+  rules: Record<string, T> | undefined,
+  effectId: string,
+): T | undefined {
   if (!rules) return undefined;
   return rules[effectId] ?? rules[effectId.split(':').at(-1) ?? effectId];
 }
 
-function durationMultiplier(policy: VariantPolicy, effectId: string): number | undefined {
-  const configured = effectRule(policy.scaling?.duration?.multipliers, effectId) ??
-   policy.scaling?.duration?.multiplier;
-  return configured === undefined ? undefined : ratioValue(configured, `duration multiplier for ${effectId}`);
+function durationMultiplier(
+  policy: VariantPolicy,
+  effectId: string,
+): number | undefined {
+  const configured =
+    effectRule(policy.scaling?.duration?.multipliers, effectId) ??
+    policy.scaling?.duration?.multiplier;
+  return configured === undefined
+    ? undefined
+    : ratioValue(configured, `duration multiplier for ${effectId}`);
 }
 
-function durationProgression(policy: VariantPolicy): 'linear' | 'multiplicative' {
+function durationProgression(
+  policy: VariantPolicy,
+): 'linear' | 'multiplicative' {
   return policy.scaling?.duration?.progression ?? 'multiplicative';
 }
 
-function amplifierStep(policy: VariantPolicy, effectId: string): number | undefined {
-  return effectRule(policy.scaling?.amplifier?.steps, effectId) ?? policy.scaling?.amplifier?.step;
+function amplifierStep(
+  policy: VariantPolicy,
+  effectId: string,
+): number | undefined {
+  return (
+    effectRule(policy.scaling?.amplifier?.steps, effectId) ??
+    policy.scaling?.amplifier?.step
+  );
 }
 
-function amplifierDurationMultiplier(policy: VariantPolicy, effectId: string): number | undefined {
-  const configured = effectRule(policy.scaling?.amplifier?.duration_multipliers, effectId) ??
-   policy.scaling?.amplifier?.duration_multiplier;
-  return configured === undefined ? undefined : ratioValue(configured, `amplifier duration multiplier for ${effectId}`);
+function amplifierDurationMultiplier(
+  policy: VariantPolicy,
+  effectId: string,
+): number | undefined {
+  const configured =
+    effectRule(policy.scaling?.amplifier?.duration_multipliers, effectId) ??
+    policy.scaling?.amplifier?.duration_multiplier;
+  return configured === undefined
+    ? undefined
+    : ratioValue(configured, `amplifier duration multiplier for ${effectId}`);
 }
 
 function profileRelativeState(
@@ -370,28 +545,55 @@ function profileRelativeState(
   name: string,
 ): JsonObject | undefined {
   const profileBase = profile.base,
-   profileState = profile[name];
+    profileState = profile[name];
   if (!profileBase || !profileState) return undefined;
 
   const baseDuration = finiteInteger(base.duration, `${path}.base.duration`, 1),
-   profileBaseDuration = finiteInteger(profileBase.duration, `${path}.profile.base.duration`, 1),
-   profileStateDuration = finiteInteger(profileState.duration, `${path}.profile.${name}.duration`, 1),
-   calculated: JsonObject = {
-     ...structuredClone(base),
-     duration: Math.max(1, rounded(config, baseDuration * profileStateDuration / profileBaseDuration)),
-   };
+    profileBaseDuration = finiteInteger(
+      profileBase.duration,
+      `${path}.profile.base.duration`,
+      1,
+    ),
+    profileStateDuration = finiteInteger(
+      profileState.duration,
+      `${path}.profile.${name}.duration`,
+      1,
+    ),
+    calculated: JsonObject = {
+      ...structuredClone(base),
+      duration: Math.max(
+        1,
+        rounded(
+          config,
+          (baseDuration * profileStateDuration) / profileBaseDuration,
+        ),
+      ),
+    };
 
   if (axis === 'amplifier') {
-    const baseAmplifier = finiteInteger(base.amplifier ?? 0, `${path}.base.amplifier`, 0),
-     profileBaseAmplifier = finiteInteger(profileBase.amplifier ?? 0, `${path}.profile.base.amplifier`, 0),
-     profileStateAmplifier = finiteInteger(
-       profileState.amplifier ?? profileBaseAmplifier,
-       `${path}.profile.${name}.amplifier`,
-       0,
-     );
-    calculated.amplifier = baseAmplifier + profileStateAmplifier - profileBaseAmplifier;
+    const baseAmplifier = finiteInteger(
+        base.amplifier ?? 0,
+        `${path}.base.amplifier`,
+        0,
+      ),
+      profileBaseAmplifier = finiteInteger(
+        profileBase.amplifier ?? 0,
+        `${path}.profile.base.amplifier`,
+        0,
+      ),
+      profileStateAmplifier = finiteInteger(
+        profileState.amplifier ?? profileBaseAmplifier,
+        `${path}.profile.${name}.amplifier`,
+        0,
+      );
+    calculated.amplifier =
+      baseAmplifier + profileStateAmplifier - profileBaseAmplifier;
   } else {
-    calculated.amplifier = finiteInteger(base.amplifier ?? 0, `${path}.base.amplifier`, 0);
+    calculated.amplifier = finiteInteger(
+      base.amplifier ?? 0,
+      `${path}.base.amplifier`,
+      0,
+    );
   }
   return calculated;
 }
@@ -408,61 +610,110 @@ function axisStates(
   maximum: number,
 ): JsonObject[] {
   const names = variantAxisNames(config, axis),
-   output: JsonObject[] = [structuredClone(base)];
+    output: JsonObject[] = [structuredClone(base)];
 
   for (let tier = 1; tier <= maximum; tier++) {
     const previous = output[tier - 1],
-     name = names[tier],
-     override = explicit[name],
-     profiled = profileRelativeState(config, path, axis, base, profile, name),
-     calculated = profiled ?? structuredClone(previous);
+      name = names[tier],
+      override = explicit[name],
+      profiled = profileRelativeState(config, path, axis, base, profile, name),
+      calculated = profiled ?? structuredClone(previous);
 
     if (!profiled && axis === 'duration') {
-      const baseDuration = finiteInteger(base.duration, `${path}.base.duration`, 1),
-       firstDuration = tier > 1
-         ? finiteInteger(output[1]?.duration, `${path}.${names[1]}.duration`, 1)
-         : undefined,
-       progression = durationProgression(policy);
+      const baseDuration = finiteInteger(
+          base.duration,
+          `${path}.base.duration`,
+          1,
+        ),
+        firstDuration =
+          tier > 1
+            ? finiteInteger(
+                output[1]?.duration,
+                `${path}.${names[1]}.duration`,
+                1,
+              )
+            : undefined,
+        progression = durationProgression(policy);
       let multiplier = durationMultiplier(policy, effectId);
       if (multiplier === undefined && firstDuration !== undefined)
         multiplier = firstDuration / baseDuration;
 
       if (tier > 1 && progression === 'linear' && firstDuration !== undefined) {
-        const previousDuration = finiteInteger(previous.duration, `${path}.${names[tier - 1]}.duration`, 1);
-        calculated.duration = Math.max(1, rounded(config, previousDuration + firstDuration - baseDuration));
+        const previousDuration = finiteInteger(
+          previous.duration,
+          `${path}.${names[tier - 1]}.duration`,
+          1,
+        );
+        calculated.duration = Math.max(
+          1,
+          rounded(config, previousDuration + firstDuration - baseDuration),
+        );
       } else if (multiplier !== undefined) {
-        calculated.duration = Math.max(1, rounded(
-          config,
-          finiteInteger(previous.duration, `${path}.${names[tier - 1]}.duration`, 1) * multiplier,
-        ));
+        calculated.duration = Math.max(
+          1,
+          rounded(
+            config,
+            finiteInteger(
+              previous.duration,
+              `${path}.${names[tier - 1]}.duration`,
+              1,
+            ) * multiplier,
+          ),
+        );
       } else if (!override) {
         throw new Error(
           `${path}.${name} requires a profile state, scaling.duration.multiplier, or an explicit state`,
         );
       }
-      calculated.amplifier = finiteInteger(base.amplifier ?? 0, `${path}.base.amplifier`, 0);
+      calculated.amplifier = finiteInteger(
+        base.amplifier ?? 0,
+        `${path}.base.amplifier`,
+        0,
+      );
     } else if (!profiled) {
       let step = amplifierStep(policy, effectId),
-       multiplier = amplifierDurationMultiplier(policy, effectId);
+        multiplier = amplifierDurationMultiplier(policy, effectId);
       if (tier > 1) {
         if (step === undefined) {
-          step = finiteInteger(output[1]?.amplifier ?? 0, `${path}.${names[1]}.amplifier`, 0) -
-            finiteInteger(base.amplifier ?? 0, `${path}.base.amplifier`, 0);
+          step =
+            finiteInteger(
+              output[1]?.amplifier ?? 0,
+              `${path}.${names[1]}.amplifier`,
+              0,
+            ) - finiteInteger(base.amplifier ?? 0, `${path}.base.amplifier`, 0);
         }
         if (multiplier === undefined) {
-          multiplier = finiteInteger(output[1]?.duration, `${path}.${names[1]}.duration`, 1) /
-            finiteInteger(base.duration, `${path}.base.duration`, 1);
+          multiplier =
+            finiteInteger(
+              output[1]?.duration,
+              `${path}.${names[1]}.duration`,
+              1,
+            ) / finiteInteger(base.duration, `${path}.base.duration`, 1);
         }
       }
       if (step !== undefined)
-        calculated.amplifier = finiteInteger(previous.amplifier ?? 0, `${path}.${names[tier - 1]}.amplifier`, 0) + step;
+        calculated.amplifier =
+          finiteInteger(
+            previous.amplifier ?? 0,
+            `${path}.${names[tier - 1]}.amplifier`,
+            0,
+          ) + step;
       else if (!override)
-        throw new Error(`${path}.${name} requires a profile state, scaling.amplifier.step, or an explicit state`);
+        throw new Error(
+          `${path}.${name} requires a profile state, scaling.amplifier.step, or an explicit state`,
+        );
       if (multiplier !== undefined) {
-        calculated.duration = Math.max(1, rounded(
-          config,
-          finiteInteger(previous.duration, `${path}.${names[tier - 1]}.duration`, 1) * multiplier,
-        ));
+        calculated.duration = Math.max(
+          1,
+          rounded(
+            config,
+            finiteInteger(
+              previous.duration,
+              `${path}.${names[tier - 1]}.duration`,
+              1,
+            ) * multiplier,
+          ),
+        );
       } else if (!override) {
         throw new Error(
           `${path}.${name} requires a profile state, scaling.amplifier.duration_multiplier, or an explicit state`,
@@ -471,8 +722,16 @@ function axisStates(
     }
 
     if (override) Object.assign(calculated, structuredClone(override));
-    calculated.duration = finiteInteger(calculated.duration, `${path}.${name}.duration`, 1);
-    calculated.amplifier = finiteInteger(calculated.amplifier ?? 0, `${path}.${name}.amplifier`, 0);
+    calculated.duration = finiteInteger(
+      calculated.duration,
+      `${path}.${name}.duration`,
+      1,
+    );
+    calculated.amplifier = finiteInteger(
+      calculated.amplifier ?? 0,
+      `${path}.${name}.amplifier`,
+      0,
+    );
     output.push(calculated);
   }
   return output;
@@ -488,17 +747,42 @@ function calculatedEffectVariant(
   amplifierTier: number,
 ): JsonObject {
   const base = explicit.base;
-  if (!base) throw new Error(`${path}.base must provide a duration and amplifier`);
+  if (!base)
+    throw new Error(`${path}.base must provide a duration and amplifier`);
   const baseDuration = finiteInteger(base.duration, `${path}.base.duration`, 1),
-   baseAmplifier = finiteInteger(base.amplifier ?? 0, `${path}.base.amplifier`, 0),
-   effectId = String(base.id ?? path),
-   durationStates = axisStates(config, path, 'duration', base, explicit, profile, policy, effectId, durationTier),
-   amplifierStates = axisStates(config, path, 'amplifier', base, explicit, profile, policy, effectId, amplifierTier),
-   durationState = durationStates[durationTier],
-   amplifierState = amplifierStates[amplifierTier],
-   durationProperties = structuredClone(durationState),
-   amplifierProperties = structuredClone(amplifierState),
-   exactName = coordinateName(config, durationTier, amplifierTier);
+    baseAmplifier = finiteInteger(
+      base.amplifier ?? 0,
+      `${path}.base.amplifier`,
+      0,
+    ),
+    effectId = String(base.id ?? path),
+    durationStates = axisStates(
+      config,
+      path,
+      'duration',
+      base,
+      explicit,
+      profile,
+      policy,
+      effectId,
+      durationTier,
+    ),
+    amplifierStates = axisStates(
+      config,
+      path,
+      'amplifier',
+      base,
+      explicit,
+      profile,
+      policy,
+      effectId,
+      amplifierTier,
+    ),
+    durationState = durationStates[durationTier],
+    amplifierState = amplifierStates[amplifierTier],
+    durationProperties = structuredClone(durationState),
+    amplifierProperties = structuredClone(amplifierState),
+    exactName = coordinateName(config, durationTier, amplifierTier);
   delete durationProperties.amplifier;
   delete amplifierProperties.duration;
 
@@ -506,29 +790,60 @@ function calculatedEffectVariant(
     ...structuredClone(base),
     ...durationProperties,
     ...amplifierProperties,
-    duration: Math.max(1, rounded(
-      config,
-      finiteInteger(durationState.duration, `${path}.${exactName}.duration`, 1) *
-        finiteInteger(amplifierState.duration, `${path}.${exactName}.duration`, 1) /
-        baseDuration,
-    )),
-    amplifier: finiteInteger(amplifierState.amplifier ?? baseAmplifier, `${path}.${exactName}.amplifier`, 0),
+    duration: Math.max(
+      1,
+      rounded(
+        config,
+        (finiteInteger(
+          durationState.duration,
+          `${path}.${exactName}.duration`,
+          1,
+        ) *
+          finiteInteger(
+            amplifierState.duration,
+            `${path}.${exactName}.duration`,
+            1,
+          )) /
+          baseDuration,
+      ),
+    ),
+    amplifier: finiteInteger(
+      amplifierState.amplifier ?? baseAmplifier,
+      `${path}.${exactName}.amplifier`,
+      0,
+    ),
   };
-  if (explicit[exactName]) Object.assign(calculated, structuredClone(explicit[exactName]));
-  calculated.duration = finiteInteger(calculated.duration, `${path}.${exactName}.duration`, 1);
-  calculated.amplifier = finiteInteger(calculated.amplifier ?? 0, `${path}.${exactName}.amplifier`, 0);
+  if (explicit[exactName])
+    Object.assign(calculated, structuredClone(explicit[exactName]));
+  calculated.duration = finiteInteger(
+    calculated.duration,
+    `${path}.${exactName}.duration`,
+    1,
+  );
+  calculated.amplifier = finiteInteger(
+    calculated.amplifier ?? 0,
+    `${path}.${exactName}.amplifier`,
+    0,
+  );
   return calculated;
 }
 
-function generatedCoordinates(config: GeneratorConfig, policy: VariantPolicy): VariantCoordinate[] {
+function generatedCoordinates(
+  config: GeneratorConfig,
+  policy: VariantPolicy,
+): VariantCoordinate[] {
   const output: VariantCoordinate[] = [],
-   durationMaximum = policy.durations ?? 0,
-   amplifierMaximum = policy.amplifiers ?? 0,
-   mix = policy.mix ?? true;
+    durationMaximum = policy.durations ?? 0,
+    amplifierMaximum = policy.amplifiers ?? 0,
+    mix = policy.mix ?? true;
   for (let duration = 0; duration <= durationMaximum; duration++) {
     for (let amplifier = 0; amplifier <= amplifierMaximum; amplifier++) {
       if (!mix && duration && amplifier) continue;
-      output.push({ duration, amplifier, name: coordinateName(config, duration, amplifier) });
+      output.push({
+        duration,
+        amplifier,
+        name: coordinateName(config, duration, amplifier),
+      });
     }
   }
   return output;
@@ -545,15 +860,17 @@ function inferredPotionType(
   if (!basePotion) return undefined;
 
   let prefix: string | undefined;
-  if (coordinate.duration === 1 && coordinate.amplifier === 0)
-    prefix = 'long';
+  if (coordinate.duration === 1 && coordinate.amplifier === 0) prefix = 'long';
   else if (coordinate.duration === 0 && coordinate.amplifier === 1)
     prefix = 'strong';
   if (!prefix) return undefined;
 
   const separator = basePotion.indexOf(':'),
-   namespace = separator >= 0 ? basePotion.slice(0, separator) : config.generator.namespaces.vanilla,
-   path = separator >= 0 ? basePotion.slice(separator + 1) : basePotion;
+    namespace =
+      separator >= 0
+        ? basePotion.slice(0, separator)
+        : config.generator.namespaces.vanilla,
+    path = separator >= 0 ? basePotion.slice(separator + 1) : basePotion;
   return `${namespace}:${prefix}_${path}`;
 }
 
@@ -565,58 +882,78 @@ function resolvedDefinitions(
   inferRegistered: boolean,
 ): Record<string, ResolvedVariantDefinition> {
   const { policy, profileStates } = validateVariants(config, path, variants);
-  if (!baseEffects.length) throw new Error(`${path} requires at least one base effect template`);
+  if (!baseEffects.length)
+    throw new Error(`${path} requires at least one base effect template`);
 
   const states = variants.states ?? {},
-   coordinates = generatedCoordinates(config, policy),
-   names = [...new Set([...coordinates.map(coordinate => coordinate.name), ...Object.keys(states)])],
-   output: Record<string, ResolvedVariantDefinition> = {};
+    coordinates = generatedCoordinates(config, policy),
+    names = [
+      ...new Set([
+        ...coordinates.map((coordinate) => coordinate.name),
+        ...Object.keys(states),
+      ]),
+    ],
+    output: Record<string, ResolvedVariantDefinition> = {};
 
   for (const name of names) {
     const coordinate = coordinateForName(config, name);
-    if (!coordinate) throw new Error(`${path}.states has unknown state ${name}`);
+    if (!coordinate)
+      throw new Error(`${path}.states has unknown state ${name}`);
 
     const effects = baseEffects.map((baseEffect, effectIndex) => {
-      const explicit: Record<string, JsonObject> = {},
-       profile: Record<string, JsonObject> = {};
-      for (const [stateName, state] of Object.entries(states)) {
-        const values = effectStateAt(state, effectIndex, baseEffects.length, `${path}.states.${stateName}`);
-        if (values) explicit[stateName] = values;
-      }
-      for (const [stateName, state] of Object.entries(profileStates)) {
-        const values = effectStateAt(
-          state,
-          effectIndex,
-          baseEffects.length,
-          `generator.variant_generation.profiles.${variants.profile}.states.${stateName}`,
+        const explicit: Record<string, JsonObject> = {},
+          profile: Record<string, JsonObject> = {};
+        for (const [stateName, state] of Object.entries(states)) {
+          const values = effectStateAt(
+            state,
+            effectIndex,
+            baseEffects.length,
+            `${path}.states.${stateName}`,
+          );
+          if (values) explicit[stateName] = values;
+        }
+        for (const [stateName, state] of Object.entries(profileStates)) {
+          const values = effectStateAt(
+            state,
+            effectIndex,
+            baseEffects.length,
+            `generator.variant_generation.profiles.${variants.profile}.states.${stateName}`,
+          );
+          if (values) profile[stateName] = values;
+        }
+
+        const explicitBase = explicit.base,
+          inheritedBase =
+            baseEffect.duration === undefined && !explicitBase
+              ? profile.base
+              : undefined;
+        explicit.base = {
+          ...structuredClone(baseEffect),
+          ...structuredClone(inheritedBase ?? {}),
+          ...structuredClone(explicitBase ?? {}),
+        };
+        if (explicit.base.duration === undefined)
+          throw new Error(
+            `${path}.states.base must provide duration for effect ${effectIndex}`,
+          );
+
+        return calculatedEffectVariant(
+          config,
+          `${path}.states[${effectIndex}]`,
+          explicit,
+          profile,
+          policy,
+          coordinate.duration,
+          coordinate.amplifier,
         );
-        if (values) profile[stateName] = values;
-      }
-
-      const explicitBase = explicit.base,
-       inheritedBase = baseEffect.duration === undefined && !explicitBase ? profile.base : undefined;
-      explicit.base = {
-        ...structuredClone(baseEffect),
-        ...structuredClone(inheritedBase ?? {}),
-        ...structuredClone(explicitBase ?? {}),
-      };
-      if (explicit.base.duration === undefined)
-        throw new Error(`${path}.states.base must provide duration for effect ${effectIndex}`);
-
-      return calculatedEffectVariant(
-        config,
-        `${path}.states[${effectIndex}]`,
-        explicit,
-        profile,
-        policy,
-        coordinate.duration,
-        coordinate.amplifier,
-      );
-    });
-
-    const configured = stateDescriptor(states[name]);
+      }),
+      configured = stateDescriptor(states[name]);
     output[name] = {
-      potion: configured.potion ?? (inferRegistered ? inferredPotionType(config, states, name, coordinate) : undefined),
+      potion:
+        configured.potion ??
+        (inferRegistered
+          ? inferredPotionType(config, states, name, coordinate)
+          : undefined),
       color: configured.color,
       effects,
     };
@@ -625,10 +962,15 @@ function resolvedDefinitions(
 }
 
 /** Returns registered potion types declared or inferred inside one vanilla family. */
-export function registeredVariantPotions(config: GeneratorConfig, family: string): Record<string, string> {
+export function registeredVariantPotions(
+  config: GeneratorConfig,
+  family: string,
+): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(vanillaVariantDefinitions(config, family))
-      .flatMap(([state, definition]) => definition.potion ? [[state, definition.potion]] : []),
+    Object.entries(vanillaVariantDefinitions(config, family)).flatMap(
+      ([state, definition]) =>
+        definition.potion ? [[state, definition.potion]] : [],
+    ),
   );
 }
 
@@ -638,7 +980,7 @@ export function customVariantDefinitions(
   effectKey: string,
 ): Record<string, ResolvedVariantDefinition> {
   let cache = customCache.get(config);
-  if (!cache) customCache.set(config, cache = new Map());
+  if (!cache) customCache.set(config, (cache = new Map()));
   const cached = cache.get(effectKey);
   if (cached) return cached;
 
@@ -661,7 +1003,7 @@ export function vanillaVariantDefinitions(
   family: string,
 ): Record<string, ResolvedVariantDefinition> {
   let cache = vanillaCache.get(config);
-  if (!cache) vanillaCache.set(config, cache = new Map());
+  if (!cache) vanillaCache.set(config, (cache = new Map()));
   const cached = cache.get(family);
   if (cached) return cached;
 
@@ -679,12 +1021,18 @@ export function vanillaVariantDefinitions(
 }
 
 /** Returns all generated variant names for one custom effect. */
-export function customVariantNames(config: GeneratorConfig, effectKey: string): string[] {
+export function customVariantNames(
+  config: GeneratorConfig,
+  effectKey: string,
+): string[] {
   return Object.keys(customVariantDefinitions(config, effectKey));
 }
 
 /** Returns all registered and generated variant names for one vanilla potion family. */
-export function vanillaVariantNames(config: GeneratorConfig, family: string): string[] {
+export function vanillaVariantNames(
+  config: GeneratorConfig,
+  family: string,
+): string[] {
   return Object.keys(vanillaVariantDefinitions(config, family));
 }
 
@@ -703,11 +1051,17 @@ export function modifierVariantEdges(
   if (!modifier.variant_axis) return [];
 
   const axis = modifier.variant_axis.axis,
-   names = variantAxisNames(config, axis),
-   targetIndex = names.indexOf(modifier.variant_axis.to),
-   fromNames = modifier.variant_axis.from ?? [names[targetIndex - 1]];
-  if (targetIndex <= 0 || fromNames.some(name => !names.includes(name)) || fromNames.includes(modifier.variant_axis.to))
-    throw new Error(`Invalid ${axis} variant axis transition to ${modifier.variant_axis.to}`);
+    names = variantAxisNames(config, axis),
+    targetIndex = names.indexOf(modifier.variant_axis.to),
+    fromNames = modifier.variant_axis.from ?? [names[targetIndex - 1]];
+  if (
+    targetIndex <= 0 ||
+    fromNames.some((name) => !names.includes(name)) ||
+    fromNames.includes(modifier.variant_axis.to)
+  )
+    throw new Error(
+      `Invalid ${axis} variant axis transition to ${modifier.variant_axis.to}`,
+    );
 
   const edges: { from: string; to: string }[] = [];
   for (const from of available) {
@@ -715,9 +1069,10 @@ export function modifierVariantEdges(
     if (!coordinate) continue;
     const currentName = names[coordinate[axis]];
     if (!fromNames.includes(currentName)) continue;
-    const target = axis === 'duration'
-      ? coordinateName(config, targetIndex, coordinate.amplifier)
-      : coordinateName(config, coordinate.duration, targetIndex);
+    const target =
+      axis === 'duration'
+        ? coordinateName(config, targetIndex, coordinate.amplifier)
+        : coordinateName(config, coordinate.duration, targetIndex);
     if (available.has(target)) edges.push({ from, to: target });
   }
   return edges;
@@ -733,11 +1088,16 @@ function matchingVariantPairs(
 ): { from: string; to: string }[] {
   if (!variants) return [{ from: explicitFrom, to: explicitTo }];
   const sourceSet = new Set(source),
-   targetSet = new Set(target),
-   names = variants === 'matching' ? [...sourceSet].filter(name => targetSet.has(name)) : variants;
-  return names.map(name => {
+    targetSet = new Set(target),
+    names =
+      variants === 'matching'
+        ? [...sourceSet].filter((name) => targetSet.has(name))
+        : variants;
+  return names.map((name) => {
     if (!sourceSet.has(name) || !targetSet.has(name))
-      throw new Error(`${label} variant ${name} is not shared by both potion families`);
+      throw new Error(
+        `${label} variant ${name} is not shared by both potion families`,
+      );
     return { from: name, to: name };
   });
 }

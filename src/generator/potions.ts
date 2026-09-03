@@ -1,4 +1,7 @@
-import { potionMatchingOptions, potionTypeNeedsEmptyEffects } from './config.ts';
+import {
+  potionMatchingOptions,
+  potionTypeNeedsEmptyEffects,
+} from './config.ts';
 import type { GeneratorConfig, JsonObject, PotionState } from './types.ts';
 import { basePotionKey, namespaced, resourcePath } from './utils.ts';
 import {
@@ -10,7 +13,9 @@ import {
 
 /** Maps Minecraft potion item IDs to configured form names. */
 export function formByItem(config: GeneratorConfig): Map<string, string> {
-  return new Map(Object.entries(config.forms).map(([name, form]) => [form.item, name]));
+  return new Map(
+    Object.entries(config.forms).map(([name, form]) => [form.item, name]),
+  );
 }
 
 function normalizeEffect(
@@ -28,28 +33,45 @@ function normalizeEffect(
     duration: Number(effect.duration ?? 1),
     ambient: Boolean(effect.ambient ?? false),
   };
-  if (effect.show_particles !== undefined) normalized.show_particles = Boolean(effect.show_particles);
-  if (effect.show_icon !== undefined) normalized.show_icon = Boolean(effect.show_icon);
+  if (effect.show_particles !== undefined)
+    normalized.show_particles = Boolean(effect.show_particles);
+  if (effect.show_icon !== undefined)
+    normalized.show_icon = Boolean(effect.show_icon);
 
   if (effect.hidden_effect !== undefined) {
-    if (!effect.hidden_effect || typeof effect.hidden_effect !== 'object' || Array.isArray(effect.hidden_effect))
+    if (
+      !effect.hidden_effect ||
+      typeof effect.hidden_effect !== 'object' ||
+      Array.isArray(effect.hidden_effect)
+    )
       throw new Error(`Invalid hidden_effect for ${normalized.id}`);
-    normalized.hidden_effect = normalizeEffect(config, effect.hidden_effect as JsonObject, normalized.id);
+    normalized.hidden_effect = normalizeEffect(
+      config,
+      effect.hidden_effect as JsonObject,
+      normalized.id,
+    );
   }
   return normalized;
 }
 
 /** Normalizes one configurable effect instance for generator-owned output. */
-export function normalizeConfiguredEffect(config: GeneratorConfig, effect: JsonObject): JsonObject {
+export function normalizeConfiguredEffect(
+  config: GeneratorConfig,
+  effect: JsonObject,
+): JsonObject {
   return normalizeEffect(config, effect);
 }
 
 /** Normalizes every configured Overbrew effect variant. */
-export function customStates(config: GeneratorConfig): Map<string, PotionState> {
+export function customStates(
+  config: GeneratorConfig,
+): Map<string, PotionState> {
   const states = new Map<string, PotionState>(),
-   defaultPotion = potionMatchingOptions(config).default_potion_type;
+    defaultPotion = potionMatchingOptions(config).default_potion_type;
   for (const [effectKey, effect] of Object.entries(config.custom.effects)) {
-    for (const [variant, definition] of Object.entries(customVariantDefinitions(config, effectKey))) {
+    for (const [variant, definition] of Object.entries(
+      customVariantDefinitions(config, effectKey),
+    )) {
       states.set(`${effectKey}:${variant}`, {
         key: variant === 'base' ? effectKey : `${variant}_${effectKey}`,
         display: effect.display,
@@ -57,7 +79,9 @@ export function customStates(config: GeneratorConfig): Map<string, PotionState> 
         color: Number(definition.color ?? effect.color),
         potion: defaultPotion ?? undefined,
         registeredPotion: definition.potion,
-        effects: definition.effects.map(effectDefinition => normalizeEffect(config, effectDefinition, effect.effect_id)),
+        effects: definition.effects.map((effectDefinition) =>
+          normalizeEffect(config, effectDefinition, effect.effect_id),
+        ),
         family: effectKey,
         variant,
         source: 'custom',
@@ -68,15 +92,19 @@ export function customStates(config: GeneratorConfig): Map<string, PotionState> 
 }
 
 /** Normalizes registered and generated vanilla potion states. */
-export function vanillaStates(config: GeneratorConfig): Map<string, PotionState> {
+export function vanillaStates(
+  config: GeneratorConfig,
+): Map<string, PotionState> {
   const states = new Map<string, PotionState>(),
-   defaultPotion = potionMatchingOptions(config).default_potion_type;
+    defaultPotion = potionMatchingOptions(config).default_potion_type;
 
   for (const family of generatedVanillaFamilies(config)) {
     const potion = config.vanilla.potions[family];
-    for (const [variant, definition] of Object.entries(vanillaVariantDefinitions(config, family))) {
+    for (const [variant, definition] of Object.entries(
+      vanillaVariantDefinitions(config, family),
+    )) {
       const stateKey = vanillaVariantKey(family, variant),
-       key = definition.potion ? resourcePath(definition.potion) : stateKey;
+        key = definition.potion ? resourcePath(definition.potion) : stateKey;
       states.set(stateKey, {
         key,
         display: potion.display,
@@ -84,7 +112,9 @@ export function vanillaStates(config: GeneratorConfig): Map<string, PotionState>
         color: Number(definition.color ?? potion.color),
         potion: defaultPotion ?? undefined,
         registeredPotion: definition.potion,
-        effects: definition.effects.map(effectDefinition => normalizeEffect(config, effectDefinition)),
+        effects: definition.effects.map((effectDefinition) =>
+          normalizeEffect(config, effectDefinition),
+        ),
         family,
         variant,
         source: 'vanilla',
@@ -95,7 +125,9 @@ export function vanillaStates(config: GeneratorConfig): Map<string, PotionState>
 }
 
 function effectVisibility(effect: JsonObject, fallback: boolean): boolean {
-  return effect.show_particles === undefined ? fallback : Boolean(effect.show_particles);
+  return effect.show_particles === undefined
+    ? fallback
+    : Boolean(effect.show_particles);
 }
 
 /** Creates the configured potion-content predicate used for custom potion states. */
@@ -103,32 +135,46 @@ export function effectPredicate(
   config: GeneratorConfig,
   state: PotionState,
   showParticles?: boolean,
-  fieldOverrides: Partial<ReturnType<typeof potionMatchingOptions>['effect_fields']> = {},
+  fieldOverrides: Partial<
+    ReturnType<typeof potionMatchingOptions>['effect_fields']
+  > = {},
 ): JsonObject {
-  const fields = { ...potionMatchingOptions(config).effect_fields, ...fieldOverrides };
-  const predicate: JsonObject = {
-    effects: {
-      contains: state.effects.map(effect => {
-        const properties: JsonObject = {};
-        if (fields.duration) properties.duration = effect.duration;
-        if (fields.amplifier) properties.amplifier = effect.amplifier;
-        if (fields.ambient) properties.ambient = Boolean(effect.ambient ?? false);
-        if (fields.visible && showParticles !== undefined)
-          properties.visible = effectVisibility(effect, showParticles);
-        return { [effect.id]: properties };
-      }),
-      size: state.effects.length,
+  const fields = {
+      ...potionMatchingOptions(config).effect_fields,
+      ...fieldOverrides,
     },
-  };
-  if (state.potion) predicate.potions = namespaced(state.potion, config.generator.namespaces.vanilla);
+    predicate: JsonObject = {
+      effects: {
+        contains: state.effects.map((effect) => {
+          const properties: JsonObject = {};
+          if (fields.duration) properties.duration = effect.duration;
+          if (fields.amplifier) properties.amplifier = effect.amplifier;
+          if (fields.ambient)
+            properties.ambient = Boolean(effect.ambient ?? false);
+          if (fields.visible && showParticles !== undefined)
+            properties.visible = effectVisibility(effect, showParticles);
+          return { [effect.id]: properties };
+        }),
+        size: state.effects.length,
+      },
+    };
+  if (state.potion)
+    predicate.potions = namespaced(
+      state.potion,
+      config.generator.namespaces.vanilla,
+    );
   return predicate;
 }
 
 /** Matches one potion type and adds a zero-effect guard only when active identity strategies require it. */
-export function potionTypePredicate(config: GeneratorConfig, potion: string): JsonObject {
+export function potionTypePredicate(
+  config: GeneratorConfig,
+  potion: string,
+): JsonObject {
   const value = namespaced(potion, config.generator.namespaces.vanilla),
-   predicate: JsonObject = { potions: value };
-  if (potionTypeNeedsEmptyEffects(config, value)) predicate.effects = { size: 0 };
+    predicate: JsonObject = { potions: value };
+  if (potionTypeNeedsEmptyEffects(config, value))
+    predicate.effects = { size: 0 };
   return predicate;
 }
 
@@ -139,9 +185,13 @@ export function getForm(config: GeneratorConfig, form: string): JsonObject {
   return formData;
 }
 
-function itemName(config: GeneratorConfig, state: PotionState, form: string): JsonObject {
+function itemName(
+  config: GeneratorConfig,
+  state: PotionState,
+  form: string,
+): JsonObject {
   const formConfig = getForm(config, form),
-   namespace = config.generator.namespaces.vanilla;
+    namespace = config.generator.namespaces.vanilla;
   return {
     translate: `item.${namespace}.${formConfig.translation_item}.effect.${basePotionKey(state.translationSuffix)}`,
     fallback: `${formConfig.fallback_prefix ?? 'Potion of '}${state.display}`,
@@ -159,7 +209,10 @@ function outputEffect(effect: JsonObject, showParticles: boolean): JsonObject {
     show_icon: Boolean(effect.show_icon ?? true),
   };
   if (effect.hidden_effect)
-    output.hidden_effect = outputEffect(effect.hidden_effect as JsonObject, showParticles);
+    output.hidden_effect = outputEffect(
+      effect.hidden_effect as JsonObject,
+      showParticles,
+    );
   return output;
 }
 
@@ -178,7 +231,9 @@ export function outputStack(
     'minecraft:custom_name': itemName(config, state, form),
     'minecraft:potion_contents': {
       custom_color: state.color,
-      custom_effects: state.effects.map(effect => outputEffect(effect, showParticles)),
+      custom_effects: state.effects.map((effect) =>
+        outputEffect(effect, showParticles),
+      ),
     },
   };
   if (state.potion)
@@ -203,7 +258,13 @@ export function modifierOutputStack(
   showParticles: boolean,
   modifier: JsonObject,
 ): JsonObject {
-  return outputStack(config, state, form, showParticles, modifier.components ?? null);
+  return outputStack(
+    config,
+    state,
+    form,
+    showParticles,
+    modifier.components ?? null,
+  );
 }
 
 /** Creates one data-driven Minecraft brewing recipe. */
@@ -224,9 +285,17 @@ export function brewingRecipe(
 }
 
 /** Matches a visible registered potion type or a generated custom-effect state. */
-export function visibleMatcher(config: GeneratorConfig, state: PotionState): JsonObject {
+export function visibleMatcher(
+  config: GeneratorConfig,
+  state: PotionState,
+): JsonObject {
   return state.registeredPotion
-    ? { potions: namespaced(state.registeredPotion, config.generator.namespaces.vanilla) }
+    ? {
+        potions: namespaced(
+          state.registeredPotion,
+          config.generator.namespaces.vanilla,
+        ),
+      }
     : effectPredicate(config, state, true);
 }
 
@@ -249,7 +318,11 @@ export function visibleOutputStack(
 }
 
 /** Matches a custom-effect potion state with the requested particle visibility. */
-export function customMatcher(config: GeneratorConfig, state: PotionState, showParticles: boolean): JsonObject {
+export function customMatcher(
+  config: GeneratorConfig,
+  state: PotionState,
+  showParticles: boolean,
+): JsonObject {
   return effectPredicate(config, state, showParticles);
 }
 

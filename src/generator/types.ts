@@ -119,7 +119,14 @@ export type ItemTagMatchValue = ItemTagPrimitive | ItemTagPrimitive[];
  * Singular automatic item-tag families. Entries in `auto_generate` must match
  * these names exactly; plural aliases are intentionally unsupported.
  */
-export type AutoItemTagKind = 'base' | 'effect' | 'modifier' | 'variant' | 'convert' | 'conversion' | 'recipe';
+export type AutoItemTagKind =
+  | 'base'
+  | 'effect'
+  | 'modifier'
+  | 'variant'
+  | 'convert'
+  | 'conversion'
+  | 'recipe';
 
 /** Routes matching recipes through one additional generated item tag. */
 export interface ItemTagRuleConfig {
@@ -197,7 +204,6 @@ export interface ModifierConfig extends JsonObject {
   global?: GlobalModifierConfig;
 }
 
-
 /** One explicit or profiled potion state. */
 export type VariantEffectState = JsonObject | JsonObject[];
 
@@ -215,7 +221,8 @@ export interface VariantStateObject extends JsonObject {
 }
 
 /** Registered potion ID or explicit effect state used by one variant. */
-export type VariantStateConfig = string | VariantEffectState | VariantStateObject;
+export type VariantStateConfig =
+  string | VariantEffectState | VariantStateObject;
 
 /** One fully resolved potion state used by normalization and recipe generation. */
 export interface ResolvedVariantDefinition {
@@ -385,7 +392,6 @@ export interface PotionEffectMatchingConfig {
   visible?: boolean;
 }
 
-
 /** Effect indexes targeted by an automatic disambiguation strategy. */
 export type AutoAdjustEffectSelection = 'all' | 'first' | number[];
 
@@ -513,7 +519,6 @@ export interface ResolvedPotionMatchingConfig {
   };
 }
 
-
 /** Text accepted by the data-pack description field. */
 export type DataPackDescription = string | JsonObject | JsonObject[];
 
@@ -614,11 +619,11 @@ export interface PotionTableGenerationConfig {
   ingredient_names?: Record<string, string>;
 }
 
-/** Snapshot-gated advancement generation settings. */
+/** Advancement generation settings with optional format-gated output. */
 export interface AdvancementGenerationConfig {
   /** Enables advancement generation. */
   enabled?: boolean;
-  /** Overlay directory that receives advancements requiring the new potion trigger. */
+  /** Optional overlay directory that receives generated advancements. */
   overlay?: string;
   /** Resource path below `advancement`; defaults to `overbrew`. */
   root?: string;

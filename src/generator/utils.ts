@@ -8,7 +8,7 @@ function slash(value: string): string {
 
 function splitPrefix(value: string): [prefix: string, body: string] {
   const normalized = slash(value),
-   drive = normalized.match(/^[A-Za-z]:\//)?.[0];
+    drive = normalized.match(/^[A-Za-z]:\//)?.[0];
   if (drive) return [drive, normalized.slice(drive.length)];
   if (normalized.startsWith('/')) return ['/', normalized.slice(1)];
   return ['', normalized];
@@ -16,9 +16,11 @@ function splitPrefix(value: string): [prefix: string, body: string] {
 
 /** Joins file-system path segments. */
 export function joinPath(...values: (string | undefined | null)[]): string {
-  const input = values.filter((value): value is string => Boolean(value)).join('/'),
-   [prefix, body] = splitPrefix(input),
-   parts: string[] = [];
+  const input = values
+      .filter((value): value is string => Boolean(value))
+      .join('/'),
+    [prefix, body] = splitPrefix(input),
+    parts: string[] = [];
 
   for (const part of body.split('/')) {
     if (!part || part === '.') continue;
@@ -37,7 +39,7 @@ export function joinPath(...values: (string | undefined | null)[]): string {
 /** Returns the parent directory of a file-system path. */
 export function parentPath(value: string): string {
   const normalized = slash(value).replace(/\/+$/, ''),
-   index = normalized.lastIndexOf('/');
+    index = normalized.lastIndexOf('/');
   if (index < 0) return '.';
   if (index === 0) return '/';
   return normalized.slice(0, index);
@@ -54,9 +56,14 @@ export function fileStem(value: string): string {
 }
 
 /** Resolves a configured path relative to its config file. */
-export function resolveFromConfig(configPath: string, configuredPath: string): string {
+export function resolveFromConfig(
+  configPath: string,
+  configuredPath: string,
+): string {
   const [prefix] = splitPrefix(configuredPath);
-  return prefix ? joinPath(configuredPath) : joinPath(parentPath(configPath), configuredPath);
+  return prefix
+    ? joinPath(configuredPath)
+    : joinPath(parentPath(configPath), configuredPath);
 }
 
 /** Reads and parses a JSON file. */
@@ -65,9 +72,16 @@ export function readJson<T = JsonObject>(filePath: string): Promise<T> {
 }
 
 /** Recursively removes generated output while rejecting filesystem roots. */
-export async function removeGeneratedDirectory(directory: string): Promise<void> {
+export async function removeGeneratedDirectory(
+  directory: string,
+): Promise<void> {
   const normalized = slash(directory).replace(/\/+$/, '');
-  if (!normalized || normalized === '.' || normalized === '/' || /^[A-Za-z]:$/.test(normalized))
+  if (
+    !normalized ||
+    normalized === '.' ||
+    normalized === '/' ||
+    /^[A-Za-z]:$/.test(normalized)
+  )
     throw new Error(`Refusing to remove unsafe directory: ${directory}`);
   await rm(directory, { force: true, recursive: true });
 }
@@ -79,18 +93,27 @@ export async function removeFile(filePath: string): Promise<void> {
 }
 
 /** Writes text and creates parent directories. */
-export async function writeText(filePath: string, value: string): Promise<void> {
+export async function writeText(
+  filePath: string,
+  value: string,
+): Promise<void> {
   await mkdir(parentPath(filePath), { recursive: true });
   await Bun.write(filePath, value);
 }
 
 /** Writes stable, two-space-indented JSON and creates parent directories. */
-export async function writeJson(filePath: string, value: unknown): Promise<void> {
+export async function writeJson(
+  filePath: string,
+  value: unknown,
+): Promise<void> {
   await writeText(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 /** Adds a default namespace when an item or tag omits one. */
-export function namespaced(value: string, defaultNamespace = 'minecraft'): string {
+export function namespaced(
+  value: string,
+  defaultNamespace = 'minecraft',
+): string {
   if (value.startsWith('#')) {
     const inner = value.slice(1);
     return `#${inner.includes(':') ? inner : `${defaultNamespace}:${inner}`}`;
@@ -125,7 +148,7 @@ export function basePotionKey(value: string): string {
 /** Recursively lists JSON files below a directory. */
 export async function listJsonFiles(root: string): Promise<string[]> {
   const files: string[] = [],
-   glob = new Glob('**/*.json');
+    glob = new Glob('**/*.json');
 
   try {
     for await (const relative of glob.scan({ cwd: root, onlyFiles: true }))

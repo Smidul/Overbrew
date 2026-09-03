@@ -6,9 +6,20 @@ import type {
   ResolvedPotionMatchingConfig,
 } from './types.ts';
 import { IngredientTagRegistry } from './tags.ts';
-import { joinPath, listJsonFiles, readJson, removeGeneratedDirectory } from './utils.ts';
-import { componentPreservingTippedArrowPath, vanillaRecipeRoot } from './generate.ts';
-import { configuredPotionEffects, modifierAutoAdjustOptions } from './config.ts';
+import {
+  joinPath,
+  listJsonFiles,
+  readJson,
+  removeGeneratedDirectory,
+} from './utils.ts';
+import {
+  componentPreservingTippedArrowPath,
+  vanillaRecipeRoot,
+} from './generate.ts';
+import {
+  configuredPotionEffects,
+  modifierAutoAdjustOptions,
+} from './config.ts';
 import { customMatcher } from './potions.ts';
 
 interface BrewingRecipeEntry {
@@ -27,15 +38,21 @@ interface NumberBounds {
   max: number;
 }
 
-function validateBrewingRecipe(filePath: string, value: JsonObject, recipeType: string): void {
-  if (value.type !== recipeType) throw new Error(`Wrong recipe type in ${filePath}`);
+function validateBrewingRecipe(
+  filePath: string,
+  value: JsonObject,
+  recipeType: string,
+): void {
+  if (value.type !== recipeType)
+    throw new Error(`Wrong recipe type in ${filePath}`);
   for (const key of ['input', 'reagent', 'output'])
     if (!(key in value)) throw new Error(`Missing ${key} in ${filePath}`);
 
   if (!('item' in value.input) || !('potion_contents' in value.input))
     throw new Error(`Invalid input in ${filePath}`);
 
-  if (!('item' in value.reagent)) throw new Error(`Invalid reagent in ${filePath}`);
+  if (!('item' in value.reagent))
+    throw new Error(`Invalid reagent in ${filePath}`);
   if (!('id' in value.output)) throw new Error(`Invalid output in ${filePath}`);
 }
 
@@ -48,9 +65,14 @@ function validateComponentPreservingImbue(
     throw new Error(`Wrong tipped-arrow recipe type in ${filePath}`);
 
   if (value.material_count !== 8)
-    throw new Error(`Component-preserving tipped arrows must require eight arrows in ${filePath}`);
+    throw new Error(
+      `Component-preserving tipped arrows must require eight arrows in ${filePath}`,
+    );
 
-  if (value.result?.id !== `${namespace}:tipped_arrow` || value.result?.count !== 8)
+  if (
+    value.result?.id !== `${namespace}:tipped_arrow` ||
+    value.result?.count !== 8
+  )
     throw new Error(`Invalid tipped-arrow result in ${filePath}`);
 }
 
@@ -73,8 +95,15 @@ function stateLabel(source: string, id: string, state: PotionState): string {
   return `${source}:${id} (${state.display})`;
 }
 
-function fieldValues(group: { state: PotionState }[], field: string): Set<string> {
-  return new Set(group.map(entry => stableJson(entry.state.effects.map(effect => effect[field]))));
+function fieldValues(
+  group: { state: PotionState }[],
+  field: string,
+): Set<string> {
+  return new Set(
+    group.map((entry) =>
+      stableJson(entry.state.effects.map((effect) => effect[field])),
+    ),
+  );
 }
 
 function stateConflictFix(
@@ -109,21 +138,31 @@ export function validatePotionStateMatchers(
 ): void {
   if (!matching.detect_conflicts) return;
 
-  const groups = new Map<string, { source: string; id: string; state: PotionState }[]>();
-  for (const [source, states] of [['custom', custom], ['vanilla', vanilla]] as const) {
+  const groups = new Map<
+    string,
+    { source: string; id: string; state: PotionState }[]
+  >();
+  for (const [source, states] of [
+    ['custom', custom],
+    ['vanilla', vanilla],
+  ] as const) {
     for (const [id, state] of states) {
       const key = stableJson(customMatcher(config, state, true)),
-       group = groups.get(key) ?? [];
+        group = groups.get(key) ?? [];
       group.push({ source, id, state });
       groups.set(key, group);
     }
   }
 
-  const conflicts = [...groups.entries()].filter(([, group]) => group.length > 1);
+  const conflicts = [...groups.entries()].filter(
+    ([, group]) => group.length > 1,
+  );
   if (!conflicts.length) return;
 
   const details = conflicts.map(([matcher, group], index) => {
-    const labels = group.map(entry => stateLabel(entry.source, entry.id, entry.state)).join(', ');
+    const labels = group
+      .map((entry) => stateLabel(entry.source, entry.id, entry.state))
+      .join(', ');
     return `${index + 1}. ${labels}\n   potion_contents: ${matcher}\n   Fix: ${stateConflictFix(group, matching)}`;
   });
 
@@ -135,7 +174,11 @@ export function validatePotionStateMatchers(
   );
 }
 
-function localTagPath(reference: string, namespace: string, tagRoot: string): string | null {
+function localTagPath(
+  reference: string,
+  namespace: string,
+  tagRoot: string,
+): string | null {
   const prefix = `#${namespace}:`;
   if (!reference.startsWith(prefix)) return null;
 
@@ -156,17 +199,25 @@ async function resolvedIngredientValues(
   if (!localPath) return new Set([reference]);
   if (cache.has(localPath)) return new Set(cache.get(localPath));
   if (stack.includes(localPath))
-    throw new Error(`Generated tag cycle while validating brewing conflicts: ${[...stack, localPath].join(' -> ')}`);
+    throw new Error(
+      `Generated tag cycle while validating brewing conflicts: ${[...stack, localPath].join(' -> ')}`,
+    );
 
   const file = Bun.file(localPath);
   if (!(await file.exists())) return new Set([reference]);
 
   const tag = await readJson(localPath),
-   values = new Set<string>();
+    values = new Set<string>();
 
   for (const value of tag.values ?? []) {
     if (typeof value !== 'string') continue;
-    for (const resolved of await resolvedIngredientValues(value, namespace, tagRoot, cache, [...stack, localPath]))
+    for (const resolved of await resolvedIngredientValues(
+      value,
+      namespace,
+      tagRoot,
+      cache,
+      [...stack, localPath],
+    ))
       values.add(resolved);
   }
 
@@ -175,18 +226,18 @@ async function resolvedIngredientValues(
 }
 
 function intersects(left: Set<string>, right: Set<string>): boolean {
-  for (const value of left)
-    if (right.has(value)) return true;
+  for (const value of left) if (right.has(value)) return true;
   return false;
 }
 
 function intersection(left: Set<string>, right: Set<string>): string[] {
-  return [...left].filter(value => right.has(value)).sort();
+  return [...left].filter((value) => right.has(value)).sort();
 }
 
 function stringValues(value: unknown): string[] | null {
   if (typeof value === 'string') return [value];
-  if (Array.isArray(value) && value.every(entry => typeof entry === 'string')) return value;
+  if (Array.isArray(value) && value.every((entry) => typeof entry === 'string'))
+    return value;
   return null;
 }
 
@@ -194,15 +245,18 @@ function potionTypesOverlap(left: unknown, right: unknown): boolean {
   if (left === undefined || right === undefined) return true;
 
   const leftValues = stringValues(left),
-   rightValues = stringValues(right);
+    rightValues = stringValues(right);
   if (!leftValues || !rightValues) return true;
 
   // Potion tags cannot be expanded from the generated item-tag tree, so use a
   // conservative overlap unless two concrete lists are provably disjoint.
-  if (leftValues.some(value => value.startsWith('#')) || rightValues.some(value => value.startsWith('#')))
+  if (
+    leftValues.some((value) => value.startsWith('#')) ||
+    rightValues.some((value) => value.startsWith('#'))
+  )
     return true;
 
-  return leftValues.some(value => rightValues.includes(value));
+  return leftValues.some((value) => rightValues.includes(value));
 }
 
 function numberBounds(value: unknown): NumberBounds | null {
@@ -210,42 +264,59 @@ function numberBounds(value: unknown): NumberBounds | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
   const object = value as JsonObject,
-   min = typeof object.min === 'number' ? object.min : Number.NEGATIVE_INFINITY,
-   max = typeof object.max === 'number' ? object.max : Number.POSITIVE_INFINITY;
+    min =
+      typeof object.min === 'number' ? object.min : Number.NEGATIVE_INFINITY,
+    max =
+      typeof object.max === 'number' ? object.max : Number.POSITIVE_INFINITY;
   return { min, max };
 }
 
 function boundsOverlap(left: unknown, right: unknown): boolean {
   const leftBounds = numberBounds(left),
-   rightBounds = numberBounds(right);
+    rightBounds = numberBounds(right);
   if (!leftBounds || !rightBounds) return true;
   return leftBounds.min <= rightBounds.max && rightBounds.min <= leftBounds.max;
 }
 
 function effectPropertiesOverlap(left: JsonObject, right: JsonObject): boolean {
   for (const field of ['duration', 'amplifier'])
-    if (field in left && field in right && !boundsOverlap(left[field], right[field])) return false;
+    if (
+      field in left &&
+      field in right &&
+      !boundsOverlap(left[field], right[field])
+    )
+      return false;
 
   for (const field of ['ambient', 'visible'])
-    if (field in left && field in right && left[field] !== right[field]) return false;
+    if (field in left && field in right && left[field] !== right[field])
+      return false;
 
   return true;
 }
 
 function effectConstraints(value: unknown): Map<string, JsonObject> {
   const constraints = new Map<string, JsonObject>();
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return constraints;
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return constraints;
 
   const object = value as JsonObject,
-   predicates = Array.isArray(object.contains) ? object.contains : [object];
+    predicates = Array.isArray(object.contains) ? object.contains : [object];
 
   for (const predicate of predicates) {
-    if (!predicate || typeof predicate !== 'object' || Array.isArray(predicate)) continue;
-    for (const [effect, properties] of Object.entries(predicate as JsonObject)) {
+    if (!predicate || typeof predicate !== 'object' || Array.isArray(predicate))
+      continue;
+    for (const [effect, properties] of Object.entries(
+      predicate as JsonObject,
+    )) {
       if (['contains', 'count', 'size'].includes(effect)) continue;
-      constraints.set(effect, properties && typeof properties === 'object' && !Array.isArray(properties)
-        ? properties as JsonObject
-        : {});
+      constraints.set(
+        effect,
+        properties &&
+          typeof properties === 'object' &&
+          !Array.isArray(properties)
+          ? (properties as JsonObject)
+          : {},
+      );
     }
   }
   return constraints;
@@ -257,27 +328,33 @@ function sizeRange(value: unknown): NumberBounds {
 
 function effectsOverlap(left: unknown, right: unknown): boolean {
   if (left === undefined || right === undefined) return true;
-  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object')
+    return true;
 
   const leftObject = left as JsonObject,
-   rightObject = right as JsonObject,
-   leftSize = sizeRange(leftObject.size),
-   rightSize = sizeRange(rightObject.size),
-   overlapSize = {
-    min: Math.max(leftSize.min, rightSize.min),
-    max: Math.min(leftSize.max, rightSize.max),
-   };
+    rightObject = right as JsonObject,
+    leftSize = sizeRange(leftObject.size),
+    rightSize = sizeRange(rightObject.size),
+    overlapSize = {
+      min: Math.max(leftSize.min, rightSize.min),
+      max: Math.min(leftSize.max, rightSize.max),
+    };
   if (overlapSize.min > overlapSize.max) return false;
 
   const leftEffects = effectConstraints(leftObject),
-   rightEffects = effectConstraints(rightObject),
-   requiredEffects = new Set([...leftEffects.keys(), ...rightEffects.keys()]);
+    rightEffects = effectConstraints(rightObject),
+    requiredEffects = new Set([...leftEffects.keys(), ...rightEffects.keys()]);
   if (requiredEffects.size > overlapSize.max) return false;
 
   for (const effect of requiredEffects) {
     const leftProperties = leftEffects.get(effect),
-     rightProperties = rightEffects.get(effect);
-    if (leftProperties && rightProperties && !effectPropertiesOverlap(leftProperties, rightProperties)) return false;
+      rightProperties = rightEffects.get(effect);
+    if (
+      leftProperties &&
+      rightProperties &&
+      !effectPropertiesOverlap(leftProperties, rightProperties)
+    )
+      return false;
   }
 
   // Unknown collection-count expressions are treated conservatively as able to overlap.
@@ -289,11 +366,15 @@ function exactEffectsPredicate(
   matching: ResolvedPotionMatchingConfig,
 ): JsonObject {
   return {
-    contains: effects.map(effect => ({
-      [effect.id.includes(':') ? effect.id : `minecraft:${effect.id}`]: effectPropertiesForOutput({
-        ...effect,
-        show_particles: effect.show_particles ?? true,
-      }, matching),
+    contains: effects.map((effect) => ({
+      [effect.id.includes(':') ? effect.id : `minecraft:${effect.id}`]:
+        effectPropertiesForOutput(
+          {
+            ...effect,
+            show_particles: effect.show_particles ?? true,
+          },
+          matching,
+        ),
     })),
     size: effects.length,
   };
@@ -311,7 +392,10 @@ function potionTypesCanMatchEffects(
   for (const value of values) {
     const effects = configuredPotionEffects(config, value);
     if (!effects) return true;
-    if (effectsOverlap(effectsPredicate, exactEffectsPredicate(effects, matching))) return true;
+    if (
+      effectsOverlap(effectsPredicate, exactEffectsPredicate(effects, matching))
+    )
+      return true;
   }
   return false;
 }
@@ -323,13 +407,23 @@ function potionPredicatesOverlap(
   matching: ResolvedPotionMatchingConfig,
 ): boolean {
   const leftPotions = left.potions,
-   rightPotions = right.potions;
+    rightPotions = right.potions;
 
   if (!potionTypesOverlap(leftPotions, rightPotions)) return false;
-  if (leftPotions !== undefined && rightPotions === undefined && right.effects !== undefined &&
-      !potionTypesCanMatchEffects(leftPotions, right.effects, config, matching)) return false;
-  if (rightPotions !== undefined && leftPotions === undefined && left.effects !== undefined &&
-      !potionTypesCanMatchEffects(rightPotions, left.effects, config, matching)) return false;
+  if (
+    leftPotions !== undefined &&
+    rightPotions === undefined &&
+    right.effects !== undefined &&
+    !potionTypesCanMatchEffects(leftPotions, right.effects, config, matching)
+  )
+    return false;
+  if (
+    rightPotions !== undefined &&
+    leftPotions === undefined &&
+    left.effects !== undefined &&
+    !potionTypesCanMatchEffects(rightPotions, left.effects, config, matching)
+  )
+    return false;
 
   return effectsOverlap(left.effects, right.effects);
 }
@@ -339,10 +433,14 @@ function effectPropertiesForOutput(
   matching: ResolvedPotionMatchingConfig,
 ): JsonObject {
   const properties: JsonObject = {};
-  if (matching.effect_fields.duration) properties.duration = Number(effect.duration ?? 1);
-  if (matching.effect_fields.amplifier) properties.amplifier = Number(effect.amplifier ?? 0);
-  if (matching.effect_fields.ambient) properties.ambient = Boolean(effect.ambient ?? false);
-  if (matching.effect_fields.visible) properties.visible = Boolean(effect.show_particles ?? true);
+  if (matching.effect_fields.duration)
+    properties.duration = Number(effect.duration ?? 1);
+  if (matching.effect_fields.amplifier)
+    properties.amplifier = Number(effect.amplifier ?? 0);
+  if (matching.effect_fields.ambient)
+    properties.ambient = Boolean(effect.ambient ?? false);
+  if (matching.effect_fields.visible)
+    properties.visible = Boolean(effect.show_particles ?? true);
   return properties;
 }
 
@@ -355,22 +453,31 @@ function outputMatchesPotionPredicate(
   if (potionTypes !== undefined) {
     if (typeof component.potion !== 'string') return false;
     const accepted = stringValues(potionTypes);
-    if (accepted && !accepted.some(value => value === component.potion || value.startsWith('#'))) return false;
+    if (
+      accepted &&
+      !accepted.some(
+        (value) => value === component.potion || value.startsWith('#'),
+      )
+    )
+      return false;
   }
 
   if (predicate.effects !== undefined) {
     // A base potion can contribute additional effects that are unavailable in
     // the serialized custom_effects list. Treat that uncommon combination
     // conservatively; generated Overbrew modifier outputs use custom effects only.
-    if (component.potion && !Array.isArray(component.custom_effects)) return true;
+    if (component.potion && !Array.isArray(component.custom_effects))
+      return true;
 
-    const actualEffects = Array.isArray(component.custom_effects) ? component.custom_effects : [],
-     exactPredicate: JsonObject = {
-      contains: actualEffects.map((effect: JsonObject) => ({
-        [effect.id]: effectPropertiesForOutput(effect, matching),
-      })),
-      size: actualEffects.length,
-     };
+    const actualEffects = Array.isArray(component.custom_effects)
+        ? component.custom_effects
+        : [],
+      exactPredicate: JsonObject = {
+        contains: actualEffects.map((effect: JsonObject) => ({
+          [effect.id]: effectPropertiesForOutput(effect, matching),
+        })),
+        size: actualEffects.length,
+      };
     if (!effectsOverlap(predicate.effects, exactPredicate)) return false;
   }
 
@@ -381,7 +488,9 @@ function matcherDescription(recipe: JsonObject): string {
   return `input=${recipe.input.item} ${stableJson(recipe.input.potion_contents)}, reagent=${recipe.reagent.item}`;
 }
 
-function disabledEffectFields(matching: ResolvedPotionMatchingConfig): string[] {
+function disabledEffectFields(
+  matching: ResolvedPotionMatchingConfig,
+): string[] {
   return Object.entries(matching.effect_fields)
     .filter(([, enabled]) => !enabled)
     .map(([field]) => `generator.potion_matching.effect_fields.${field}`);
@@ -393,10 +502,11 @@ function pairConflictFix(
   matching: ResolvedPotionMatchingConfig,
 ): string {
   const sharedInput = intersection(left.inputValues, right.inputValues),
-   sharedReagent = intersection(left.reagentValues, right.reagentValues),
-   tagOverlap = matching.check_tag_overlaps &&
-    (String(left.value.input.item) !== String(right.value.input.item) ||
-     String(left.value.reagent.item) !== String(right.value.reagent.item));
+    sharedReagent = intersection(left.reagentValues, right.reagentValues),
+    tagOverlap =
+      matching.check_tag_overlaps &&
+      (String(left.value.input.item) !== String(right.value.input.item) ||
+        String(left.value.reagent.item) !== String(right.value.reagent.item));
 
   if (tagOverlap)
     return (
@@ -416,7 +526,7 @@ function pairConflictFix(
   );
 }
 
-async function ingredientValues(
+function ingredientValues(
   reference: string,
   customNamespaceRoot: string,
   tags: IngredientTagRegistry,
@@ -432,19 +542,23 @@ async function ingredientValues(
   );
 }
 
-
-function globalModifierId(filePath: string, config: GeneratorConfig): string | null {
+function globalModifierId(
+  filePath: string,
+  config: GeneratorConfig,
+): string | null {
   const marker = '/recipe/brewing/',
-   index = filePath.replaceAll('\\', '/').indexOf(marker);
+    index = filePath.replaceAll('\\', '/').indexOf(marker);
   if (index < 0) return null;
-  const id = filePath.replaceAll('\\', '/').slice(index + marker.length).split('/', 1)[0];
+  const id = filePath
+    .replaceAll('\\', '/')
+    .slice(index + marker.length)
+    .split('/', 1)[0];
   return config.modifiers?.[id]?.global ? id : null;
 }
 
 function selfLoopFix(
   recipe: PreparedBrewingRecipe,
   config: GeneratorConfig,
-  matching: ResolvedPotionMatchingConfig,
 ): string {
   const modifierId = globalModifierId(recipe.filePath, config);
   if (modifierId && !modifierAutoAdjustOptions(config, modifierId).enabled)
@@ -471,42 +585,74 @@ async function validateBrewingConflicts(
   if (!matching.detect_conflicts) return;
 
   const cache = new Map<string, Set<string>>(),
-   prepared: PreparedBrewingRecipe[] = await Promise.all(
-    recipes.map(async entry => ({
-      ...entry,
-      inputValues: await ingredientValues(
-        String(entry.value.input.item), customNamespaceRoot, tags, matching, cache,
-      ),
-      reagentValues: await ingredientValues(
-        String(entry.value.reagent.item), customNamespaceRoot, tags, matching, cache,
-      ),
-      output: stableJson(entry.value.output),
-    })),
-   ),
-   conflicts: string[] = [];
+    prepared: PreparedBrewingRecipe[] = await Promise.all(
+      recipes.map(async (entry) => ({
+        ...entry,
+        inputValues: await ingredientValues(
+          String(entry.value.input.item),
+          customNamespaceRoot,
+          tags,
+          matching,
+          cache,
+        ),
+        reagentValues: await ingredientValues(
+          String(entry.value.reagent.item),
+          customNamespaceRoot,
+          tags,
+          matching,
+          cache,
+        ),
+        output: stableJson(entry.value.output),
+      })),
+    ),
+    conflicts: string[] = [];
 
   for (const recipe of prepared) {
-    const component = recipe.value.output?.components?.[`${vanillaNamespace}:potion_contents`];
-    if (!component || typeof component !== 'object' || Array.isArray(component)) continue;
+    const component =
+      recipe.value.output?.components?.[`${vanillaNamespace}:potion_contents`];
+    if (!component || typeof component !== 'object' || Array.isArray(component))
+      continue;
     if (!recipe.inputValues.has(String(recipe.value.output.id))) continue;
-    if (!outputMatchesPotionPredicate(recipe.value.input.potion_contents, component, matching)) continue;
+    if (
+      !outputMatchesPotionPredicate(
+        recipe.value.input.potion_contents,
+        component,
+        matching,
+      )
+    )
+      continue;
 
     conflicts.push(
       `${conflicts.length + 1}. ${recipe.filePath}\n` +
-      `   ${matcherDescription(recipe.value)}\n` +
-      '   accepts its own output because the output keeps the same matchable potion contents.\n' +
-      `   Fix: ${selfLoopFix(recipe, config, matching)}`,
+        `   ${matcherDescription(recipe.value)}\n` +
+        '   accepts its own output because the output keeps the same matchable potion contents.\n' +
+        `   Fix: ${selfLoopFix(recipe, config)}`,
     );
   }
 
   for (let leftIndex = 0; leftIndex < prepared.length; leftIndex++) {
     const left = prepared[leftIndex];
-    for (let rightIndex = leftIndex + 1; rightIndex < prepared.length; rightIndex++) {
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < prepared.length;
+      rightIndex++
+    ) {
       const right = prepared[rightIndex];
 
       if (left.output === right.output) continue;
-      if (!potionPredicatesOverlap(left.value.input.potion_contents, right.value.input.potion_contents, config, matching)) continue;
-      if (!intersects(left.inputValues, right.inputValues) || !intersects(left.reagentValues, right.reagentValues))
+      if (
+        !potionPredicatesOverlap(
+          left.value.input.potion_contents,
+          right.value.input.potion_contents,
+          config,
+          matching,
+        )
+      )
+        continue;
+      if (
+        !intersects(left.inputValues, right.inputValues) ||
+        !intersects(left.reagentValues, right.reagentValues)
+      )
         continue;
 
       conflicts.push(
@@ -556,22 +702,28 @@ export async function validateGenerated(
   if (preserveImbuedComponents) {
     const imbuePath = componentPreservingTippedArrowPath(vanillaNamespaceRoot);
     if (!(await Bun.file(imbuePath).exists()))
-      throw new Error(`Missing component-preserving tipped-arrow recipe: ${imbuePath}`);
+      throw new Error(
+        `Missing component-preserving tipped-arrow recipe: ${imbuePath}`,
+      );
     recipePaths.push(imbuePath);
   }
 
   const tagRoot = joinPath(customNamespaceRoot, 'tags', 'item', tags.root),
-   tagPaths = await listJsonFiles(tagRoot),
-   generatedTags = new Set(tagPaths.map(filePath => joinPath(filePath))),
-   missing = new Set<string>(),
-   brewingRecipes: BrewingRecipeEntry[] = [],
-
-   requireTag = (reference: string): void => {
-    if (!reference.startsWith(`#${tags.namespace}:`)) return;
-    const tagName = reference.split(':', 2)[1],
-     tagPath = joinPath(customNamespaceRoot, 'tags', 'item', `${tagName}.json`);
-    if (!generatedTags.has(tagPath)) missing.add(reference);
-   };
+    tagPaths = await listJsonFiles(tagRoot),
+    generatedTags = new Set(tagPaths.map((filePath) => joinPath(filePath))),
+    missing = new Set<string>(),
+    brewingRecipes: BrewingRecipeEntry[] = [],
+    requireTag = (reference: string): void => {
+      if (!reference.startsWith(`#${tags.namespace}:`)) return;
+      const tagName = reference.split(':', 2)[1],
+        tagPath = joinPath(
+          customNamespaceRoot,
+          'tags',
+          'item',
+          `${tagName}.json`,
+        );
+      if (!generatedTags.has(tagPath)) missing.add(reference);
+    };
 
   for (const filePath of recipePaths) {
     const recipe = await readJson(filePath);
@@ -579,19 +731,24 @@ export async function validateGenerated(
       validateComponentPreservingImbue(filePath, recipe, vanillaNamespace);
     } else {
       validateBrewingRecipe(filePath, recipe, `${vanillaNamespace}:brewing`);
-      if (typeof recipe.reagent?.item === 'string') requireTag(recipe.reagent.item);
+      if (typeof recipe.reagent?.item === 'string')
+        requireTag(recipe.reagent.item);
       brewingRecipes.push({ filePath, value: recipe });
     }
   }
 
   for (const filePath of tagPaths) {
     const tag = await readJson(filePath);
-    if (!Array.isArray(tag.values)) throw new Error(`Invalid item tag in ${filePath}`);
+    if (!Array.isArray(tag.values))
+      throw new Error(`Invalid item tag in ${filePath}`);
     for (const value of tag.values)
       if (typeof value === 'string') requireTag(value);
   }
 
-  if (missing.size) throw new Error(`Missing generated item tags: ${[...missing].sort().join(', ')}`);
+  if (missing.size)
+    throw new Error(
+      `Missing generated item tags: ${[...missing].sort().join(', ')}`,
+    );
   await validateBrewingConflicts(
     brewingRecipes,
     customNamespaceRoot,
@@ -604,6 +761,10 @@ export async function validateGenerated(
 }
 
 /** Clears the generated vanilla brewing directory before regeneration. */
-export async function removeGeneratedVanillaRecipes(vanillaNamespaceRoot: string): Promise<void> {
-  await removeGeneratedDirectory(joinPath(vanillaRecipeRoot(vanillaNamespaceRoot), 'brewing'));
+export async function removeGeneratedVanillaRecipes(
+  vanillaNamespaceRoot: string,
+): Promise<void> {
+  await removeGeneratedDirectory(
+    joinPath(vanillaRecipeRoot(vanillaNamespaceRoot), 'brewing'),
+  );
 }
